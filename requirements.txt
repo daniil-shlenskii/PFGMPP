@@ -1,0 +1,6 @@
+torch==2.7.0
+torchvision==0.22.0
+scikit-learn==1.6.1
+seaborn==0.13.2
+tqdm
+matplotlib
