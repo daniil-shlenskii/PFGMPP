@@ -1,8 +1,11 @@
+from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
-from torch import Tensor
+from torch import LongTensor, Tensor
 from tqdm import tqdm
+from typing_extensions import override
 
 from utils.data import get_inifinite_loader
 
@@ -12,6 +15,7 @@ EPS = 1e-8
 class PFGMPP:
     def __init__(
         self,
+        *,
         data_dim: int,
         model: nn.Module,
         optimizer: torch.optim.Optimizer,
@@ -35,7 +39,7 @@ class PFGMPP:
         self.sample_from_sigma_prior = self._get_sigma_prior(sigma_prior_mode)
 
     @torch.no_grad()
-    def sample(self, sample_size: int, num_steps: int=32, rho: float=7.0, label=None):
+    def sample(self, *, sample_size: int, num_steps: int=32, rho: float=7.0, label: Optional[LongTensor]=None, **drift_kwargs):
         assert label is None or len(label) == sample_size
         self.model.eval()
 
@@ -50,11 +54,15 @@ class PFGMPP:
         # Sampling with Euler scheme
         for t_cur, t_next in zip(sigma_steps[:-1], sigma_steps[1:]):
             x_cur = x_next
-            x_next = x_cur + self.model.drift(x_cur, t_cur, self.D, label) * (t_next - t_cur)
+            x_next = x_cur + self.drift(x_hat=x_cur, t=t_cur, label=label, **drift_kwargs) * (t_next - t_cur)
 
         return x_next
 
-    def sample_from_posterior(self, x: Tensor, t: Tensor):
+    @override
+    def drift(self, *, x_hat: Tensor, t: Tensor, label: Optional[LongTensor]=None, **kwargs):
+        return self.model.drift(x_hat=x_hat, t=t, D=self.D, label=label)
+
+    def sample_from_posterior(self, *, x: Tensor, t: Tensor):
         r = t * self.D**0.5
         # Sampling form inverse-beta distribution
         samples_norm = np.random.beta(
@@ -74,15 +82,14 @@ class PFGMPP:
     def sample_from_prior(self, sample_size: int):
         x = torch.zeros(sample_size, self.data_dim).to(self.device)
         t = torch.full((sample_size,), self.sigma_max).to(self.device)
-        return self.sample_from_posterior(x, t)
+        return self.sample_from_posterior(x=x, t=t)
 
-    def train(self, train_loader: torch.utils.data.DataLoader, n_iters: int, verbose: bool=True, log_every: int=100):
-        self.model.train()
+    def train(self, *, train_loader: torch.utils.data.DataLoader, n_iters: int, verbose: bool=True, log_every: int=100):
         train_loader = get_inifinite_loader(train_loader)
         pbar = tqdm(train_loader, total=n_iters, dynamic_ncols=True, colour="green", disable=not verbose)
         acc_batch_loss = 0.
         for i, (x, label) in enumerate(pbar):
-            batch_loss = self._train_step(x, label)
+            batch_loss = self._train_step(x=x, label=label)
             acc_batch_loss += batch_loss / log_every
             if i == 0 or (i + 1) % log_every == 0:
                 pbar.set_postfix(loss=acc_batch_loss)
@@ -90,10 +97,11 @@ class PFGMPP:
             if i == n_iters:
                 break
 
-    def _train_step(self, x: Tensor, label: Tensor):
+    def _train_step(self, *, x: Tensor, label: LongTensor=None):
+        self.model.train()
         x, label = x.to(self.device), label.to(self.device)
         t = self.sample_from_sigma_prior(x.shape[0]).to(self.device)
-        x_hat = self.sample_from_posterior(x, t)
+        x_hat = self.sample_from_posterior(x=x, t=t)
         loss = self.model.loss(t=t, x=x, x_hat=x_hat, label=label).mean()
 
         self.optimizer.zero_grad()

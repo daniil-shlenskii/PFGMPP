@@ -5,7 +5,7 @@ from torch import Tensor
 
 
 class TimeConditionedMLP(nn.Module):
-    def __init__(self, dim, hidden_dim, n_layers, n_classes: int=None, **kwargs):
+    def __init__(self, dim, hidden_dim, n_layers, out_dim=None, n_classes: int=None, **kwargs):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.n_classes = n_classes
@@ -26,7 +26,8 @@ class TimeConditionedMLP(nn.Module):
             for _ in range(n_layers)
         ])
 
-        self.output_proj = nn.Linear(hidden_dim, dim)
+        out_dim = dim if out_dim is None else out_dim
+        self.output_proj = nn.Linear(hidden_dim, out_dim)
 
         if n_classes:
             self.label_embed = nn.Sequential(
@@ -36,7 +37,7 @@ class TimeConditionedMLP(nn.Module):
                 nn.Linear(hidden_dim, hidden_dim),
             )
 
-    def forward(self, x: Tensor, t: Tensor, label: Optional[Tensor]=None) -> Tensor:
+    def forward(self, *, x: Tensor, t: Tensor, label: Optional[Tensor]=None) -> Tensor:
         t_embed = self.time_embed(t.view(-1, 1))
         if self.n_classes:
             label_embed = self.label_embed(label.view(-1))
