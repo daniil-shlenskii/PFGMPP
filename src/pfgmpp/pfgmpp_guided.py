@@ -1,6 +1,9 @@
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from loguru import logger
 from torch import LongTensor, Tensor
 from tqdm import tqdm
 
@@ -31,13 +34,13 @@ class PFGMPPGuided(PFGMPP):
         return self.sample(label=None, guidance_scale=0., **kwargs)
 
     def drift(self, x_hat: Tensor, t: Tensor, label: LongTensor, guidance_scale: float=0., **kwargs):
-        uncoditional_score = self.model.drift(x_hat=x_hat, t=t, D=self.D, label=None)
+        uncoditional_drift = self.model.drift(x_hat=x_hat, t=t, D=self.D, label=None)
         classifer_score = (
             self.classifier_score(x_hat=x_hat, t=t, label=label)
             if label is not None
             else torch.zeros_like(x_hat)
         )
-        return uncoditional_score + classifer_score * t * guidance_scale
+        return uncoditional_drift + classifer_score * t * guidance_scale
 
     def classifier_score(self, *, x_hat: Tensor, t: Tensor, label: LongTensor): 
         with torch.enable_grad():
@@ -77,7 +80,7 @@ class PFGMPPGuided(PFGMPP):
     def _train_classifier_step(self, *, x: Tensor, label: LongTensor):
         self.cls.train()
         x, label = x.to(self.device), label.to(self.device)
-        t = torch.rand((x.shape[0], 1), device=self.device) * (self.sigma_max - self.sigma_min) + self.sigma_min
+        t = self.sample_from_sigma_prior(x.shape[0]).to(self.device)
         x_hat = self.sample_from_posterior(x=x, t=t)
         logits = self.cls(x=x_hat, t=t)
         loss = F.cross_entropy(logits, label).mean()
@@ -95,3 +98,16 @@ class PFGMPPGuided(PFGMPP):
         x_hat = self.sample_from_posterior(x=x, t=t)
         logits = self.cls(x=x_hat, t=t)
         return torch.eq(torch.argmax(logits, dim=1), label).to(torch.float32).mean().item()
+
+    def save(self, save_dir: str):
+        os.makedirs(save_dir, exist_ok=True)
+        torch.save(self.model.state_dict(), os.path.join(save_dir, "cls.pt"))
+        super().save(save_dir=save_dir)
+
+    def load(self, load_dir: str):
+        cls_path = os.path.join(load_dir, "cls.pt")
+        if not os.path.exists(cls_path):
+            logger.warning(f"{cls_path} does not exist")
+        else:
+            self.cls.load_state_dict(torch.load(cls_path))
+        super().load(load_dir=load_dir)

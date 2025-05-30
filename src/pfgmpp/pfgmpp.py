@@ -1,8 +1,10 @@
+import os
 from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn as nn
+from loguru import logger
 from torch import LongTensor, Tensor
 from tqdm import tqdm
 from typing_extensions import override
@@ -118,3 +120,14 @@ class PFGMPP:
         else:
             raise NotImplementedError
         return sample_from_sigma_prior
+
+    def save(self, save_dir: str):
+        os.makedirs(save_dir, exist_ok=True)
+        torch.save(self.model.state_dict(), os.path.join(save_dir, "model.pt"))
+
+    def load(self, load_dir: str):
+        model_path = os.path.join(load_dir, "model.pt")
+        if not os.path.exists(model_path):
+            logger.warning(f"{model_path} does not exist")
+        else:
+            self.model.load_state_dict(torch.load(model_path))
