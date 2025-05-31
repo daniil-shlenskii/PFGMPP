@@ -117,6 +117,21 @@ class PFGMPP:
                 rnd_normal = torch.randn((sample_size, 1), device=self.device)
                 sigma = (rnd_normal * 1.2 - 1.2).exp()
                 return torch.clip(sigma, min=self.sigma_min, max=self.sigma_max)
+        elif mode == "uniform":
+            def sample_from_sigma_prior(sample_size: int):
+                return torch.rand((sample_size, 1), device=self.device)
+        elif mode == "linear":
+            def sample_from_sigma_prior(sample_size: int):
+                a, b = self.sigma_min, self.sigma_max
+                u = torch.rand(sample_size)
+                samples = a + (b - a) * torch.sqrt(u)
+                return samples
+        elif mode == "sqrt":
+            def sample_from_sigma_prior(sample_size: int):
+                a, b = self.sigma_min, self.sigma_max
+                u = torch.rand(sample_size)
+                samples = a + (b - a) * u.pow(2/3)
+                return samples
         else:
             raise NotImplementedError
         return sample_from_sigma_prior
