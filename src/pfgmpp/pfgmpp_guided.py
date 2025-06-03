@@ -42,7 +42,7 @@ class PFGMPPGuided(PFGMPP):
             if label is not None
             else torch.zeros_like(x_hat)
         )
-        return uncoditional_drift + classifer_score * t * guidance_scale
+        return uncoditional_drift - classifer_score * t * guidance_scale
 
     def classifier_score(self, *, x_hat: Tensor, t: Tensor, label: LongTensor): 
         with torch.enable_grad():
@@ -79,10 +79,10 @@ class PFGMPPGuided(PFGMPP):
                     loss=acc_batch_loss,
                     score=acc_batch_score,
                     sigma_min_loss=acc_sigma_min_loss,
-                    sigma_mean_loss=acc_sigma_mean_loss,
+                    # sigma_mean_loss=acc_sigma_mean_loss,
                     sigma_max_loss=acc_sigma_max_loss,
                     sigma_min_score=acc_sigma_min_score,
-                    sigma_mean_score=acc_sigma_mean_score,
+                    # sigma_mean_score=acc_sigma_mean_score,
                     sigma_max_score=acc_sigma_max_score
                 )
                 acc_batch_loss, acc_batch_score = 0., 0.
