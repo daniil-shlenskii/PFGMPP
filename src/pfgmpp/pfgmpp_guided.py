@@ -117,15 +117,11 @@ class PFGMPPGuided(PFGMPP):
         score = torch.eq(torch.argmax(logits, dim=1), label).to(torch.float32).mean().item()
         return loss, score
 
-    def save(self, save_dir: str):
-        os.makedirs(save_dir, exist_ok=True)
-        torch.save(self.cls.state_dict(), os.path.join(save_dir, "cls.pt"))
-        super().save(save_dir=save_dir)
+    def save_classifier(self, save_path: str):
+        torch.save(self.cls.state_dict(), save_path)
 
-    def load(self, load_dir: str):
-        cls_path = os.path.join(load_dir, "cls.pt")
-        if not os.path.exists(cls_path):
-            logger.warning(f"{cls_path} does not exist")
+    def load_classifier(self, load_path: str):
+        if not os.path.exists(load_path):
+            logger.warning(f"{load_path} does not exist")
         else:
-            self.cls.load_state_dict(torch.load(cls_path))
-        super().load(load_dir=load_dir)
+            self.cls.load_state_dict(torch.load(load_path))

@@ -136,13 +136,11 @@ class PFGMPP:
             raise NotImplementedError
         return sample_from_sigma_prior
 
-    def save(self, save_dir: str):
-        os.makedirs(save_dir, exist_ok=True)
-        torch.save(self.model.state_dict(), os.path.join(save_dir, "model.pt"))
+    def save_model(self, save_path: str):
+        torch.save(self.model.state_dict(),save_path)
 
-    def load(self, load_dir: str):
-        model_path = os.path.join(load_dir, "model.pt")
-        if not os.path.exists(model_path):
-            logger.warning(f"{model_path} does not exist")
+    def load_model(self, load_path: str):
+        if not os.path.exists(load_path):
+            logger.warning(f"{load_path} does not exist")
         else:
-            self.model.load_state_dict(torch.load(model_path))
+            self.model.load_state_dict(torch.load(load_path))
