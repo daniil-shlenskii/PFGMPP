@@ -1,0 +1,18 @@
+[project]
+name = "pfgmpp"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "matplotlib>=3.9.4",
+    "scikit-learn==1.6.1",
+    "seaborn==0.13.2",
+    "torch==2.7.0",
+    "torchvision==0.22.0",
+    "tqdm>=4.67.1",
+]
+
+[dependency-groups]
+dev = [
+    "notebook>=7.4.3",
+]
