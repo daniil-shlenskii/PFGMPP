@@ -9,7 +9,7 @@ from torch import LongTensor, Tensor
 from tqdm import tqdm
 from typing_extensions import override
 
-from utils.data import get_inifinite_loader
+from pfgmpp.utils.data import InfiniteDataLoader
 
 EPS = 1e-8
 
@@ -87,7 +87,7 @@ class PFGMPP:
         return self.sample_from_posterior(x=x, t=t)
 
     def train(self, *, train_loader: torch.utils.data.DataLoader, n_iters: int, verbose: bool=True, log_every: int=100):
-        train_loader = get_inifinite_loader(train_loader)
+        train_loader = InfiniteDataLoader(train_loader)
         pbar = tqdm(train_loader, total=n_iters, dynamic_ncols=True, colour="green", disable=not verbose)
         acc_batch_loss = 0.
         for i, (x, label) in enumerate(pbar):

@@ -1,8 +1,8 @@
-import torch
+from collections.abc import Iterable
 
 
 class InfiniteDataLoader:
-    def __init__(self, dataloader):
+    def __init__(self, dataloader: Iterable):
         self.dataloader = dataloader
         self.iterator = iter(dataloader)
 
@@ -16,6 +16,3 @@ class InfiniteDataLoader:
             self.iterator = iter(self.dataloader)
             batch = next(self.iterator)
         return batch
-
-def get_inifinite_loader(loader):
-    return InfiniteDataLoader(loader)

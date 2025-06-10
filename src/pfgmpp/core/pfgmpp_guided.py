@@ -7,7 +7,7 @@ from loguru import logger
 from torch import LongTensor, Tensor
 from tqdm import tqdm
 
-from utils.data import get_inifinite_loader
+from pfgmpp.utils.data import InfiniteDataLoader
 
 from .pfgmpp import PFGMPP
 
@@ -54,7 +54,7 @@ class PFGMPPGuided(PFGMPP):
             return torch.autograd.grad(class_log_probs.sum(), x_hat)[0]
 
     def train_classifier(self, train_loader: torch.utils.data.DataLoader, n_iters: int, verbose: bool=True, log_every: int=100):
-        train_loader = get_inifinite_loader(train_loader)
+        train_loader = InfiniteDataLoader(train_loader)
         pbar = tqdm(train_loader, total=n_iters, dynamic_ncols=True, colour="green", disable=not verbose)
         acc_batch_loss, acc_batch_score = 0., 0.
         acc_sigma_min_loss, acc_sigma_mean_loss, acc_sigma_max_loss = 0., 0., 0.

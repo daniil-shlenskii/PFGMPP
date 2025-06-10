@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from nn.networks import TimeConditionedMLP
+from pfgmpp.nn.networks import TimeConditionedMLP
 
 
 class BaseField(nn.Module):
