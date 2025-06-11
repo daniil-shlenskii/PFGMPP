@@ -1,4 +1,9 @@
+import functools
+from typing import Optional
+
 import torch
+
+from pfgmpp.utils.reproducibility import set_seed
 
 
 def get_sigma_prior(*, mode: str, sigma_min: float, sigma_max: float):
@@ -24,4 +29,11 @@ def get_sigma_prior(*, mode: str, sigma_min: float, sigma_max: float):
             return samples
     else:
         raise NotImplementedError
-    return sample_from_sigma_prior
+
+    def reproducibility_decorator(func):
+        @functools.wraps(func)
+        def wrapper(sample_size, seed: Optional[int]=None):
+            set_seed(seed)
+            return func(sample_size)
+        return wrapper
+    return reproducibility_decorator(sample_from_sigma_prior)
