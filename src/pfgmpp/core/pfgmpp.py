@@ -5,6 +5,8 @@ import torch
 import torch.nn.functional as F
 from torch import LongTensor, Tensor
 
+from pfgmpp.utils.reproducibility import set_seed
+
 EPS = 1e-8
 
 
@@ -22,7 +24,9 @@ class PFGMPP:
         self.sigma_max = sigma_max
         self.D = D
 
-    def sample_from_posterior(self, *, x: Tensor, t: Tensor):
+    def sample_from_posterior(self, *, x: Tensor, t: Tensor, seed: Optional[int]=None):
+        set_seed(seed)
+
         r = t * self.D**0.5
         # Sampling form inverse-beta distribution
         samples_norm = np.random.beta(
@@ -39,10 +43,10 @@ class PFGMPP:
         # Construct the perturbation
         return x + (unit_gaussian * R).float()
 
-    def sample_from_prior(self, sample_size: int):
+    def sample_from_prior(self, sample_size: int, seed: Optional[int]=None):
         x = torch.zeros(sample_size, self.data_dim)
         t = torch.full((sample_size,), self.sigma_max)
-        return self.sample_from_posterior(x=x, t=t)
+        return self.sample_from_posterior(x=x, t=t, seed=seed)
 
     @torch.no_grad()
     def sample(
@@ -54,8 +58,10 @@ class PFGMPP:
         rho: float = 7.0,
         label: Optional[LongTensor] = None,
         device: str = "cpu",
+        seed: Optional[int] = None,
     ):
         assert label is None or len(label) == sample_size
+        set_seed(seed)
 
         # Noise samling
         x_next = self.sample_from_prior(sample_size)
