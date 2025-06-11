@@ -19,7 +19,7 @@ class PFGMPPLoss(abc.ABC):
         )
 
     @abc.abstractmethod
-    def __call__(self, *, net: nn.Module, x: Tensor, label: Optional[LongTensor]=None):
+    def __call__(self, *, net: nn.Module, x: Tensor, label: Optional[LongTensor]=None, seed: Optional[int]=None):
         pass
 
 class EDMLoss(PFGMPPLoss):
@@ -33,9 +33,9 @@ class EDMLoss(PFGMPPLoss):
         super().__init__(pfgmpp=pfgmpp, sigma_prior_mode=sigma_prior_mode)
         self.sigma_data = sigma_data
 
-    def __call__(self, *, net: nn.Module, x: Tensor, label: Optional[LongTensor]=None):
-        t = self.sample_from_sigma_prior(x.shape[0]).to(x.device)
-        x_hat = self.pfgmpp.sample_from_posterior(x=x, t=t)
+    def __call__(self, *, net: nn.Module, x: Tensor, label: Optional[LongTensor]=None, seed: Optional[int]=None):
+        t = self.sample_from_sigma_prior(x.shape[0], seed=seed).to(x.device)
+        x_hat = self.pfgmpp.sample_from_posterior(x=x, t=t, seed=seed)
         D_x = net(x=x_hat, t=t, label=label)
 
         loss_batchwise = torch.sum((D_x - x)**2, dim=1)
