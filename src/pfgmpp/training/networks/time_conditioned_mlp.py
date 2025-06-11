@@ -5,7 +5,7 @@ from torch import Tensor
 
 
 class TimeConditionedMLP(nn.Module):
-    def __init__(self, dim, hidden_dim, n_layers, out_dim=None, n_classes: int=None, **kwargs):
+    def __init__(self, *, dim, hidden_dim, n_layers, out_dim=None, n_classes: int=None, **kwargs):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.n_classes = n_classes
