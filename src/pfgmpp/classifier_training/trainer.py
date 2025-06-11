@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Callable, Optional
 
 import torch
@@ -10,7 +11,7 @@ from pfgmpp.core.pfgmpp import PFGMPP
 from pfgmpp.utils.nn import get_device_from_net
 
 
-class PFGMPPTrainer:
+class ClassifierTrainer:
     def __init__(
         self,
         *,
@@ -47,13 +48,10 @@ class PFGMPPTrainer:
         if save_path is not None:
             torch.save(self.net.state_dict(), save_path)
 
-    def _train_step(self, *, x: Tensor, label: Optional[LongTensor]=None):
+    def _train_step(self, *, x: Tensor, label: LongTensor):
         self.net.train()
 
-        if label is None:
-            x = x.to(self.device)
-        else:
-            x, label = x.to(self.device), label.to(self.device)
+        x, label = x.to(self.device), label.to(self.device)
 
         loss = self.loss_fn(net=self.net, x=x, label=label).mean()
 

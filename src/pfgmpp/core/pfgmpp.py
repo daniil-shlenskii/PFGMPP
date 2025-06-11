@@ -78,7 +78,6 @@ class PFGMPP:
         *,
         drift: Callable,
         classifier: Callable,
-        label: LongTensor,
         guidance_scale: float,
         **kwargs,
     ):
@@ -89,6 +88,6 @@ class PFGMPP:
                 log_probs = F.log_softmax(logits, dim=-1)
                 class_log_probs = log_probs[torch.arange(len(logits)), label.view(-1)]
                 return torch.autograd.grad(class_log_probs.sum(), x)[0]
-        def guided_drift(x_hat: Tensor, t: Tensor):
-            return drift(x=x_hat, t=t, label=label) - classifier_score(x=x_hat, t=t, label=label) * guidance_scale * t
+        def guided_drift(x: Tensor, t: Tensor, label: LongTensor):
+            return drift(x=x, t=t, label=label) - classifier_score(x=x, t=t, label=label) * guidance_scale * t
         return self.sample(drift=guided_drift, **kwargs)
