@@ -6,7 +6,8 @@ import torch.nn as nn
 from torch import LongTensor
 from tqdm import tqdm
 
-from ibmd.utils.nn import get_device_from_net
+from ibmd.nn.ema import ModelEMA
+from ibmd.nn.utils import get_device_from_net
 
 
 class IBMD:
@@ -19,6 +20,7 @@ class IBMD:
         student_net_optimizer_config: dict,
         student_data_estimator_net_config: dict,
         n_classes: int = None,
+        ema_decay: float = 0.999,
     ):
         self.teacher_dynamic = teacher_dynamic
         self.teacher_net = teacher_net
@@ -34,13 +36,17 @@ class IBMD:
             **student_data_estimator_net_config,
         )
 
+        self.student_net_ema = ModelEMA(model=self.student_net, decay=ema_decay)
+
         self.n_classes = n_classes
+        self.ema_decay = ema_decay
         self.device = get_device_from_net(teacher_net)
 
     @torch.no_grad()
     def sample(self, *, sample_size: int, label: Optional[LongTensor]=None):
-        self.student_net.eval()
-        return self._sample_from_student(sample_size=sample_size, label=label)
+        prior_samples = self.teacher_dynamic.sample_from_prior(sample_size).to(self.device)
+        t = torch.full((sample_size,), self.teacher_dynamic.sigma_max).to(self.device)
+        return self.student_net_ema.ema(x=prior_samples, t=t, label=label)
 
     def _sample_from_student(self, sample_size: int, label: Optional[LongTensor]=None):
         prior_samples = self.teacher_dynamic.sample_from_prior(sample_size).to(self.device)
@@ -70,7 +76,7 @@ class IBMD:
             if i == n_iters:
                 break
         if save_path is not None:
-            torch.save(self.student_net.state_dict(), save_path)
+            self.save(save_path)
 
     def update_student(self, *, batch_size: int, it: int):
         self.student_net.train()
@@ -89,6 +95,8 @@ class IBMD:
         self.student_net_optimizer.zero_grad()
         loss.backward()
         self.student_net_optimizer.step()
+
+        self.student_net_ema.update()
 
         return loss.item()
 
@@ -111,3 +119,10 @@ class IBMD:
         self.student_data_estimator_net_optimizer.step()
 
         return loss.item()
+
+    def save(self, save_path: str):
+        torch.save(self.student_net_ema.state_dict(), save_path)
+
+    def load(self, load_path: str):
+        self.student_net_ema.load_state_dict(torch.load(load_path))
+        self.student_net.load_state_dict(self.student_net_ema.model.state_dict())
