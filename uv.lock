@@ -1130,7 +1130,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pfgmpp"
+name = "pfgmplayground"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
