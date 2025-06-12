@@ -36,9 +36,9 @@ class PFGMPP:
         inverse_beta = samples_norm / (1 - samples_norm + EPS)
         inverse_beta = torch.from_numpy(inverse_beta).to(x.device).double()
         # Sampling from p_r(R) by change-of-variable (c.f. Appendix B)
-        R = (r.squeeze(-1) * np.sqrt(inverse_beta + EPS)).view(len(x), -1)
+        R = (r.squeeze(-1) * torch.sqrt(inverse_beta + EPS)).view(len(x), -1)
         # Uniformly sample the angle component
-        gaussian = torch.randn(len(x), self.data_dim).to(R.device)
+        gaussian = torch.randn(len(x), self.data_dim).to(x.device)
         unit_gaussian = gaussian / torch.norm(gaussian, p=2, dim=1, keepdim=True)
         # Construct the perturbation
         return x + (unit_gaussian * R).float()
@@ -64,7 +64,7 @@ class PFGMPP:
         set_seed(seed)
 
         # Noise samling
-        x_next = self.sample_from_prior(sample_size)
+        x_next = self.sample_from_prior(sample_size).to(device)
 
         # Time step discretization.
         step_indices = torch.arange(num_steps, dtype=torch.float, device=device)
