@@ -28,7 +28,8 @@ class IBMD:
 
         self.student_net = deepcopy(teacher_net)
         self.student_net_optimizer = torch.optim.Adam(
-            params=self.student_net.parameters(), **student_net_optimizer_config
+            params=self.student_net.parameters(),
+            **student_net_optimizer_config
         )
         self.student_data_estimator_net = deepcopy(teacher_net)
         self.student_data_estimator_net_optimizer = torch.optim.Adam(
@@ -43,8 +44,8 @@ class IBMD:
         self.device = get_device_from_net(teacher_net)
 
     @torch.no_grad()
-    def sample(self, *, sample_size: int, label: Optional[LongTensor]=None):
-        prior_samples = self.teacher_dynamic.sample_from_prior(sample_size).to(self.device)
+    def sample(self, *, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
+        prior_samples = self.teacher_dynamic.sample_from_prior(sample_size, seed=seed).to(self.device)
         t = torch.full((sample_size,), self.teacher_dynamic.sigma_max).to(self.device)
         return self.student_net_ema.ema(x=prior_samples, t=t, label=label)
 
