@@ -8,10 +8,10 @@ from ibmd.nn.utils import freeze_model, get_device_from_net
 
 class ModelEMA:
     def __init__(self, model, decay=0.999):
-        self.model = model
-        self.decay = decay
-
         self.device = get_device_from_net(model)
+
+        self.model = model.module if hasattr(model, 'module') else model
+        self.decay = decay
 
         self.ema = deepcopy(model).eval()
         self.ema.to(self.device)

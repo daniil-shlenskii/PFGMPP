@@ -25,22 +25,30 @@ class IBMD:
         self.teacher_net = teacher_net
         self.teacher_loss_fn = teacher_loss_fn
 
-        self.student_net = deepcopy(teacher_net)
+        self.n_classes = n_classes
+        self.ema_decay = ema_decay
+        self.device = get_device_from_net(teacher_net)
+
+        (
+            self.student_net,
+            self.student_net_ema,
+            self.student_data_estimator_net,
+        ) = self._setup()
+
         self.student_net_optimizer = torch.optim.Adam(
             params=self.student_net.parameters(),
             **student_net_optimizer_config
         )
-        self.student_data_estimator_net = deepcopy(teacher_net)
         self.student_data_estimator_net_optimizer = torch.optim.Adam(
             params=self.student_data_estimator_net.parameters(),
             **student_data_estimator_net_config,
         )
 
-        self.student_net_ema = ModelEMA(model=self.student_net, decay=ema_decay)
-
-        self.n_classes = n_classes
-        self.ema_decay = ema_decay
-        self.device = get_device_from_net(teacher_net)
+    def _setup(self):
+        student_net = deepcopy(self.teacher_net).to(self.device)
+        student_data_estimator_net = deepcopy(self.teacher_net).to(self.device)
+        student_net_ema = ModelEMA(model=student_net, decay=self.ema_decay)
+        return student_net, student_net_ema, student_data_estimator_net
 
     @torch.no_grad()
     def sample(self, *, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
