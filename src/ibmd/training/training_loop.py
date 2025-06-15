@@ -31,6 +31,8 @@ def setup(backend="auto"):
 
 def training_loop(
     *,
+    run_dir: str,
+    #
     batch_size: int,
     inner_problem_iters: int,
     n_iters: int,
@@ -47,7 +49,7 @@ def training_loop(
     #
     log_every: int = 500,
     eval_every: int = 500,
-    callback: Optional[Callable] = None,
+    callback: Optional[dict] = None,
     save_path: Optional[str] = None,
     verbose: bool = True,
 ):
@@ -56,7 +58,12 @@ def training_loop(
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
 
+    if callback is not None:
+        callback = instantiate(callback)
+
     training_loop_instantiated(
+        run_dir=run_dir,
+        #
         teacher_dynamics=teacher_dynamics,
         teacher_net=teacher_net,
         teacher_loss_fn=teacher_loss_fn,
@@ -78,6 +85,8 @@ def training_loop(
 
 def training_loop_instantiated(
     *,
+    run_dir: str,
+    #
     teacher_dynamics: Any,
     teacher_net: nn.Module,
     teacher_loss_fn: Callable,
@@ -96,6 +105,12 @@ def training_loop_instantiated(
     save_path: Optional[str] = None,
     verbose: bool = True,
 ):
+    # setup run dir
+    ckpt_path = os.path.join(run_dir, "ckpt.pt")
+    eval_dir = os.path.join(run_dir, "eval")
+    os.makedirs(eval_dir, exist_ok=True)
+
+    # setup multiprocess
     rank, local_rank, world_size, device = setup()
     effective_batch_size = batch_size // world_size
 
@@ -121,11 +136,12 @@ def training_loop_instantiated(
         else:
             acc_batch_loss = (acc_batch_loss * it + batch_loss) / (it + 1)
 
-        if (it + 1) % log_every == 0:
+        if it % log_every == 0:
             pbar.set_postfix(student_loss=acc_batch_loss)
             acc_batch_loss = 0.
-        if rank == 0 and callback is not None and (it + 1) % eval_every == 0:
-            callback(ibmd, it=it)
+        if rank == 0 and callback is not None and it % eval_every == 0:
+            callback(ibmd, it=it, device=device, eval_dir=eval_dir)
+            ibmd.save(ckpt_path)
         if it == n_iters:
             break
 
