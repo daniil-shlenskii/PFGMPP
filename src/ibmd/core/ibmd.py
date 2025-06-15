@@ -4,7 +4,6 @@ from typing import Any, Callable, Optional
 import torch
 import torch.nn as nn
 from torch import LongTensor
-from tqdm import tqdm
 
 from ibmd.nn.ema import ModelEMA
 from ibmd.nn.utils import get_device_from_net
@@ -14,7 +13,7 @@ class IBMD:
     def __init__(
         self,
         *,
-        teacher_dynamic: Any,
+        teacher_dynamics: Any,
         teacher_net: nn.Module,
         teacher_loss_fn: Callable,
         student_net_optimizer_config: dict,
@@ -22,7 +21,7 @@ class IBMD:
         n_classes: int = None,
         ema_decay: float = 0.999,
     ):
-        self.teacher_dynamic = teacher_dynamic
+        self.teacher_dynamics = teacher_dynamics
         self.teacher_net = teacher_net
         self.teacher_loss_fn = teacher_loss_fn
 
@@ -45,41 +44,17 @@ class IBMD:
 
     @torch.no_grad()
     def sample(self, *, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
-        prior_samples = self.teacher_dynamic.sample_from_prior(sample_size, seed=seed).to(self.device)
-        t = torch.full((sample_size,), self.teacher_dynamic.sigma_max).to(self.device)
+        prior_samples = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
+        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max).to(self.device)
         return self.student_net_ema.ema(x=prior_samples, t=t, label=label)
 
-    def _sample_from_student(self, sample_size: int, label: Optional[LongTensor]=None):
-        prior_samples = self.teacher_dynamic.sample_from_prior(sample_size).to(self.device)
-        t = torch.full((sample_size,), self.teacher_dynamic.sigma_max).to(self.device)
-        return self.student_net(x=prior_samples, t=t, label=label)
+    def train_step(self, *, batch_size, inner_problem_iters: int):
+        for _ in range(inner_problem_iters):
+            _ = self.update_student_data_estimator(batch_size=batch_size)
+        student_net_loss = self.update_student(batch_size=batch_size)
+        return student_net_loss
 
-    def train(
-        self,
-        *,
-        batch_size,
-        n_iters: int,
-        inner_problem_iters: int=1,
-        log_every: int = 100,
-        save_path: Optional[str] = None,
-        verbose: bool = True,
-    ):
-        pbar = tqdm(range(n_iters), total=n_iters, dynamic_ncols=True, colour="green", disable=not verbose)
-        acc_batch_loss = 0.
-        for i in pbar:
-            for _ in range(inner_problem_iters):
-                _ = self.update_student_data_estimator(batch_size=batch_size)
-            student_net_loss = self.update_student(batch_size=batch_size, it=i)
-            acc_batch_loss += student_net_loss / log_every
-            if (i + 1) % log_every == 0:
-                pbar.set_postfix(student_loss=acc_batch_loss)
-                acc_batch_loss = 0.
-            if i == n_iters:
-                break
-        if save_path is not None:
-            self.save(save_path)
-
-    def update_student(self, *, batch_size: int, it: int):
+    def update_student(self, *, batch_size: int):
         self.student_net.train()
         self.student_data_estimator_net.eval()
         self.teacher_net.eval()
@@ -88,9 +63,10 @@ class IBMD:
         if self.n_classes is not None:
             label = torch.randint(0, self.n_classes, (batch_size,)).to(self.device)
 
+        shared_seed = torch.randint(0, 2**32, (1,)).item()
         student_batch = self._sample_from_student(sample_size=batch_size, label=label)
-        teacher_loss = self.teacher_loss_fn(net=self.teacher_net, x=student_batch, label=label, seed=it)
-        student_data_estimator_loss = self.teacher_loss_fn(net=self.student_data_estimator_net, x=student_batch, label=label, seed=it)
+        teacher_loss = self.teacher_loss_fn(net=self.teacher_net, x=student_batch, label=label, seed=shared_seed)
+        student_data_estimator_loss = self.teacher_loss_fn(net=self.student_data_estimator_net, x=student_batch, label=label, seed=shared_seed)
         loss = (teacher_loss - student_data_estimator_loss).mean()
 
         self.student_net_optimizer.zero_grad()
@@ -120,6 +96,11 @@ class IBMD:
         self.student_data_estimator_net_optimizer.step()
 
         return loss.item()
+
+    def _sample_from_student(self, sample_size: int, label: Optional[LongTensor]=None):
+        prior_samples = self.teacher_dynamics.sample_from_prior(sample_size).to(self.device)
+        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max).to(self.device)
+        return self.student_net(x=prior_samples, t=t, label=label)
 
     def save(self, save_path: str):
         torch.save(self.student_net_ema.state_dict(), save_path)
