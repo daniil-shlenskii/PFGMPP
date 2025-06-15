@@ -1,6 +1,6 @@
 from typing import Callable, Optional
 
-import torch.nn as nn
+import torch
 from hydra.utils import instantiate
 from tqdm import tqdm
 
@@ -13,7 +13,8 @@ def training_loop(
     inner_problem_iters: int,
     n_iters: int,
     #
-    teacher_net: nn.Module,
+    teacher_net_config: str,
+    teacher_net_ckpt_path: str,
     teacher_dynamics_config: dict,
     teacher_loss_fn_config: dict,
     student_net_optimizer_config: dict,
@@ -30,8 +31,9 @@ def training_loop(
     #
     device: str = "cpu",
 ):
+    teacher_net = instantiate(teacher_net_config)
+    teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location=torch.device(device)))
     teacher_dynamics = instantiate(teacher_dynamics_config)
-    # teacher_net = instantiate(teacher_net_config).to(device)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
     ibmd = IBMD(
         teacher_dynamics=teacher_dynamics,
@@ -64,8 +66,8 @@ def training_loop_instantiated(
     inner_problem_iters: int,
     n_iters: int,
     #
-    log_every: int = 100,
-    eval_every: int = 100,
+    log_every: int = 500,
+    eval_every: int = 500,
     callback: Optional[Callable] = None,
     save_path: Optional[str] = None,
     verbose: bool = True,
