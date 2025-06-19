@@ -37,7 +37,7 @@ def training_loop(
     inner_problem_iters: int,
     n_iters: int,
     #
-    teacher_net_config: str,
+    teacher_net_config: dict,
     teacher_net_ckpt_path: str,
     teacher_dynamics_config: dict,
     teacher_loss_fn_config: dict,
@@ -53,8 +53,13 @@ def training_loop(
     save_path: Optional[str] = None,
     verbose: bool = True,
 ):
-    teacher_net = instantiate(teacher_net_config)
-    teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location="cpu"))
+    teacher_net_ckpt = torch.load(teacher_net_ckpt_path)
+    if isinstance(teacher_net_ckpt, dict):
+        teacher_net = instantiate(teacher_net_config)
+        teacher_net.load_state_dict(teacher_net_ckpt)
+    else:
+        # edm model model is used
+        teacher_net = instantiate(teacher_net_config, edm_net=teacher_net_ckpt) 
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
 

@@ -1,0 +1,49 @@
+_problem_:
+  img_channels: &img_channels 3
+  img_resolution: &img_resolution 32
+  data_dim: &data_dim 3072
+  n_classes: &n_classes 10
+
+train:
+  n_iters: 100_000
+  inner_problem_iters: 5
+  batch_size: 512
+  run_dir: ...
+
+eval:
+  log_every: 500
+  eval_every: 500
+  callback:
+    _target_: ibmd.training.callbacks.TwoDimCallback
+    sample_size: 10_000
+
+ibmd:
+  n_classes: *n_classes
+  ema_decay: 0.99
+
+  teacher:
+    dynamics:
+      _target_: pfgmpp.core.PFGMPP
+      data_dim: *data_dim
+      sigma_min: 0.002
+      sigma_max: 80.0
+      D: 2048
+
+    loss:
+      _target_: pfgmpp.training.losses.EDMLoss
+
+    net:
+      _target_: ibmd.nn.utils.EDMNetWrapper
+      img_channels: *img_channels
+      img_resolution: *img_resolution
+      n_classes: *n_classes
+
+    ckpt_path: /Users/shlenskii/Desktop/github/pfgmpp/artifacts/toy/gaussians/conditional/11.pt
+
+  student:
+    net_optimizer:
+      lr: 5e-5
+
+    data_estimator_net_optimizer:
+      lr: 5e-5
+
