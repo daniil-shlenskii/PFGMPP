@@ -7,6 +7,7 @@ from ibmd.training.training_loop import training_loop
 @hydra.main(config_path="configs", config_name="ibmd")
 def main(config: DictConfig):
     training_loop(
+        edm_teacher=config.ibmd.teacher.get("is_edm", False),
         teacher_net_config=config.ibmd.teacher.net,
         teacher_net_ckpt_path=config.ibmd.teacher.ckpt_path,
         teacher_dynamics_config=config.ibmd.teacher.dynamics,

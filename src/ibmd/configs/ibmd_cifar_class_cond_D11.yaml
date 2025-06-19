@@ -14,8 +14,11 @@ eval:
   log_every: 500
   eval_every: 500
   callback:
-    _target_: ibmd.training.callbacks.TwoDimCallback
-    sample_size: 10_000
+    _target_: ibmd.training.callbacks.ImageDataCallback
+    n_classes: *n_classes
+    sample_size_per_class: 2 
+    img_channels: *img_channels
+    img_resolution: *img_resolution
 
 ibmd:
   n_classes: *n_classes
@@ -38,7 +41,9 @@ ibmd:
       img_resolution: *img_resolution
       n_classes: *n_classes
 
-    ckpt_path: /Users/shlenskii/Desktop/github/pfgmpp/artifacts/toy/gaussians/conditional/11.pt
+    ckpt_path: ...
+
+    is_edm: True
 
   student:
     net_optimizer:
