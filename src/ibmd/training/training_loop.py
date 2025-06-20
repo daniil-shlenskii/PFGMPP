@@ -38,7 +38,6 @@ def training_loop(
     inner_problem_iters: int,
     n_iters: int,
     #
-    edm_teacher: bool,
     teacher_net_config: dict,
     teacher_net_ckpt_path: str,
     teacher_dynamics_config: dict,
@@ -52,15 +51,10 @@ def training_loop(
     log_every: int = 500,
     eval_every: int = 500,
     callback: Optional[dict] = None,
-    save_path: Optional[str] = None,
     verbose: bool = True,
 ):
-    if edm_teacher:
-        with open(teacher_net_ckpt_path, "rb") as file:
-            teacher_net = pickle.load(file)['ema']
-    else:
-        teacher_net = instantiate(teacher_net_config)
-        teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path))
+    teacher_net = instantiate(teacher_net_config)
+    teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location="cpu"))
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
 
@@ -85,7 +79,6 @@ def training_loop(
         log_every=log_every,
         eval_every=eval_every,
         callback=callback,
-        save_path=save_path,
         verbose=verbose,
     )
 
@@ -108,7 +101,6 @@ def training_loop_instantiated(
     log_every: int = 500,
     eval_every: int = 500,
     callback: Optional[Callable] = None,
-    save_path: Optional[str] = None,
     verbose: bool = True,
 ):
     # setup run dir
@@ -151,5 +143,4 @@ def training_loop_instantiated(
         if it == n_iters:
             break
 
-    if save_path is not None:
-        ibmd.save(save_path)
+    ibmd.save(ckpt_path)
