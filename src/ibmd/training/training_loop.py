@@ -1,5 +1,4 @@
 import os
-import pickle
 from typing import Any, Callable, Optional
 
 import torch
