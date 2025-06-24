@@ -1,0 +1,45 @@
+_problem_:
+  img_channels: &img_channels 3
+  img_resolution: &img_resolution 32
+  data_dim: &data_dim 3072
+  n_classes: &n_classes 2
+
+train:
+  n_iters: 100_000
+  inner_problem_iters: 5
+  batch_size: 512
+  run_dir: ...
+
+eval:
+  log_every: 50
+  eval_every: 50
+  # callback:
+  #   _target_: ibmd.training.callbacks.TwoDimCallback
+  #   sample_size: 10_000
+
+ibmd:
+  n_classes: *n_classes
+  ema_decay: 0.99
+
+  teacher:
+    dynamics:
+      _target_: pfgmpp.core.PFGMPP
+      data_dim: *data_dim
+      sigma_min: 0.002
+      sigma_max: 80.0
+      D: 2048
+
+    loss:
+      _target_: pfgmpp.training.losses.EDMLoss
+
+    img_channels: *img_channels
+    img_resolution: *img_resolution
+
+    ckpt_path: ...
+
+  student:
+    net_optimizer:
+      lr: 1e-4
+
+    data_estimator_net_optimizer:
+      lr: 1e-4
