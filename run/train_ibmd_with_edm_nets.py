@@ -1,7 +1,10 @@
 import os
+from omegaconf import OmegaConf
 import pickle
 import sys
 from typing import Any, Callable, Optional
+from torch import Tensor, LongTensor
+import torch.nn.functional as F
 
 import hydra
 import torch
@@ -86,6 +89,8 @@ def training_loop(
         img_resolution=img_resolution,
         n_classes=n_classes,
     )
+    for p in teacher_net.parameters():
+        p.requires_grad = True
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
 
@@ -115,6 +120,7 @@ def training_loop(
 
 @hydra.main(config_path="configs", config_name="ibmd_edm")
 def main(config: DictConfig):
+    print(OmegaConf.to_yaml(config))
     training_loop(
         img_channels=config.ibmd.teacher.img_channels,
         img_resolution=config.ibmd.teacher.img_resolution,

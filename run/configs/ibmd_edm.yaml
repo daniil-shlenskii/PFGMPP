@@ -2,13 +2,13 @@ _problem_:
   img_channels: &img_channels 3
   img_resolution: &img_resolution 32
   data_dim: &data_dim 3072
-  n_classes: &n_classes 2
+  n_classes: &n_classes 10
 
 train:
   n_iters: 100_000
   inner_problem_iters: 5
-  batch_size: 512
-  run_dir: ...
+  batch_size: 64
+  run_dir: /home/jovyan/d-shlenskii/repos/PFGMPP/artifacts/ibmd_on_images/cifar/cifar10_ncsnpp_D_2048_conditional
 
 eval:
   log_every: 50
@@ -35,7 +35,7 @@ ibmd:
     img_channels: *img_channels
     img_resolution: *img_resolution
 
-    ckpt_path: ...
+    ckpt_path: /home/jovyan/d-shlenskii/repos/PFGMPP/artifacts/pfgmpp_original/checkpoints/cifar10_ncsnpp_D_2048_conditional.pkl
 
   student:
     net_optimizer:
