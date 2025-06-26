@@ -13,8 +13,7 @@ class ModelEMA:
         self.model = model.module if hasattr(model, 'module') else model
         self.decay = decay
 
-        self.ema = deepcopy(model).eval()
-        self.ema.to(self.device)
+        self.ema = deepcopy(model).to(self.device).eval()
         freeze_model(self.ema)
 
     @torch.no_grad()
@@ -22,8 +21,7 @@ class ModelEMA:
         for ema_param, model_param in zip(
             self.ema.parameters(), self.model.parameters()
         ):
-            ema_param.data =\
-                ema_param.data * self.decay + model_param.data * (1 - self.decay)
+            ema_param.data.mul_(self.decay).add_(model_param.data, alpha=1-self.decay)
 
     def state_dict(self) -> Dict:
         return {

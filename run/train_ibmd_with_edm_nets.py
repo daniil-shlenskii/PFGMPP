@@ -1,18 +1,17 @@
 import os
-from omegaconf import OmegaConf
 import pickle
 import sys
 from typing import Any, Callable, Optional
-from torch import Tensor, LongTensor
-import torch.nn.functional as F
 
 import hydra
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+import torch.nn.functional as F
 from constants import DNNLIB_DIR, EDM_UTILS_DIR, TORCH_UTILS_DIR
 from hydra.utils import instantiate
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
+from torch import LongTensor, Tensor
 from tqdm import tqdm
 
 from ibmd.training.training_loop import training_loop_instantiated
@@ -38,7 +37,7 @@ class EDMNetWrapper(nn.Module):
 
     def forward(self, x: Tensor, t: Tensor, label: LongTensor=None):
         # modify input
-        x = x.reshape(-1, self.img_channels, self.img_resolution, self.img_resolution)
+        x = x.view(-1, self.img_channels, self.img_resolution, self.img_resolution)
         if label is None:
             class_labels = None
         else:
@@ -48,7 +47,7 @@ class EDMNetWrapper(nn.Module):
         out = self.edm_net(x=x, sigma=t, class_labels=class_labels)
 
         # modify output
-        return out.reshape(-1, self.data_dim)
+        return out.view(-1, self.data_dim)
 
 def load_edm_net(ckpt_path: str) -> nn.Module:
     edm_utils_dirs = [DNNLIB_DIR, EDM_UTILS_DIR, TORCH_UTILS_DIR]
