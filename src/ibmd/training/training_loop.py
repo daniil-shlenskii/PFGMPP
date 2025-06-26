@@ -156,7 +156,7 @@ def training_loop_instantiated(
             pbar.set_postfix(student_loss=acc_batch_loss)
             acc_batch_loss = 0.
         if rank == 0 and callback is not None and it % eval_every == 0:
-            callback(ibmd, it=it, device=device, eval_dir=eval_dir)
+            callback(ibmd, it=it, eval_dir=eval_dir)
             ibmd.save(ckpt_path)
         if it == n_iters:
             break

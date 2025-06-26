@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
 from IPython.display import clear_output
@@ -13,8 +14,8 @@ class TwoDimCallback:
             torch.zeros(sample_size//2), torch.ones(sample_size//2),
         ]).to(torch.long)
 
-    def __call__(self, ibmd: IBMD, it: int, device: torch.device, eval_dir: str, seed: int=0):
-        gens = ibmd.sample(sample_size=self.sample_size, label=self.labels.to(device)).cpu().numpy()
+    def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
+        gens = ibmd.sample(sample_size=self.sample_size, label=self.labels.to(ibmd.device)).cpu().numpy()
         plt.figure(figsize=(4, 4))
         sns.scatterplot(x=gens[:, 0], y=gens[:, 1], hue=self.labels)
         plt.xlabel(""); plt.ylabel("")
@@ -33,10 +34,14 @@ class ImageDataCallback:
         ]).long().view(-1)
         self.sample_size = n_classes * sample_size_per_class
 
-    def __call__(self, ibmd: IBMD, it: int, device: torch.device, eval_dir: str, seed: int=0):
+    def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
         gens = ibmd.sample(
-            sample_size=self.sample_size, label=self.labels, seed=seed,
+            sample_size=self.sample_size, label=self.labels.to(ibmd.device), seed=seed,
         ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
+
+        # normalization
+        gens -= np.min(gens, axis=0)
+        gens /= np.max(gens, axis=0)
 
         ncols = 4
         nrows = (self.sample_size + ncols - 1) // ncols
