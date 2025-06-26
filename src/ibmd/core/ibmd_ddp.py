@@ -14,8 +14,8 @@ class IBMD_DDP(IBMD):
     def _setup(self):
         student_net, student_net_ema, student_data_estimator_net = super()._setup()
         if get_device_from_net(self.teacher_net).type != "cpu":
-            student_net = DDP(student_net, device_ids=[self.local_rank])
-            student_data_estimator_net = DDP(student_data_estimator_net, device_ids=[self.local_rank])
+            student_net = DDP(student_net, device_ids=[self.local_rank], static_graph=True)
+            student_data_estimator_net = DDP(student_data_estimator_net, device_ids=[self.local_rank], static_graph=True)
             torch.distributed.barrier()
         return student_net, student_net_ema, student_data_estimator_net
 
