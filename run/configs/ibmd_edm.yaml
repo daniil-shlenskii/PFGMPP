@@ -7,15 +7,18 @@ _problem_:
 train:
   n_iters: 100_000
   inner_problem_iters: 5
-  batch_size: 64
+  batch_size: 256 
   run_dir: /home/jovyan/d-shlenskii/repos/PFGMPP/artifacts/ibmd_on_images/cifar/cifar10_ncsnpp_D_2048_conditional
 
 eval:
   log_every: 50
-  eval_every: 50
-  # callback:
-  #   _target_: ibmd.training.callbacks.TwoDimCallback
-  #   sample_size: 10_000
+  eval_every: 100
+  callback:
+    _target_: ibmd.training.callbacks.ImageDataCallback
+    n_classes: *n_classes
+    sample_size_per_class: 2
+    img_channels: *img_channels
+    img_resolution: *img_resolution
 
 ibmd:
   n_classes: *n_classes
