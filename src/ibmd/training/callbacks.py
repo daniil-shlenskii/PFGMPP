@@ -39,20 +39,14 @@ class TwoDimCallback(IBMDCallback):
         plt.savefig(f"{eval_dir}/{it}.png")
         plt.close()
 
-class ImageDataCallback(IBMDCallback):
+
+class VisualizeImageModelCallback(IBMDCallback):
     def __init__(
         self,
-        # dataset params
         img_channels: int,
         img_resolution: int,
-        # visualization params
         n_classes: int,
         sample_size_per_class: int,
-        # fid params
-        dataset_name: str,
-        dataset_split: str,
-        fid_num_samples: int,
-        fid_batch_size: int,
     ):
         self.img_channels = img_channels
         self.img_resolution = img_resolution
@@ -62,18 +56,10 @@ class ImageDataCallback(IBMDCallback):
         self.labels = torch.tensor([
             [i] * sample_size_per_class for i in range(n_classes)
         ]).long().view(-1)
+
         self.sample_size = n_classes * sample_size_per_class
 
-        self.dataset_name = dataset_name
-        self.dataset_split = dataset_split
-        self.fid_num_samples = fid_num_samples
-        self.fid_batch_size = fid_batch_size
-
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
-        self.save_visualization(ibmd, it, eval_dir, seed)
-        self.compute_fid(ibmd, eval_dir, it, seed)
-
-    def save_visualization(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
         gens = ibmd.sample(
             sample_size=self.sample_size, label=self.labels.to(ibmd.device), seed=seed,
         ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
@@ -98,17 +84,40 @@ class ImageDataCallback(IBMDCallback):
                 fig.delaxes(ax)
         plt.savefig(f"{eval_dir}/{it}.png")
 
-    def compute_fid(self, ibmd, eval_dir: str, it: int, seed: int = 0):
-        # Generate samples for FID (normalized to [0, 255] uint8)
+class FIDCallback(IBMDCallback):
+    def __init__(
+        self,
+        img_channels: int,
+        img_resolution: int,
+        n_classes: int,
+        #
+        dataset_name: str,
+        dataset_split: str,
+        #
+        num_sample_per_class: int,
+        batch_size: int,
+    ):
+        self.img_channels = img_channels
+        self.img_resolution = img_resolution
+        self.n_classes = n_classes
+
+        self.dataset_name = dataset_name
+        self.dataset_split = dataset_split
+
+        self.num_sample_per_class = num_sample_per_class
+        self.batch_size = batch_size
+
+    def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
         fake_images = []
-        for _ in range(0, self.fid_num_samples, self.fid_batch_size):
-            batch_size = min(self.fid_batch_size, self.fid_num_samples - len(fake_images))
-            labels = torch.randint(0, self.n_classes, (batch_size,)).to(ibmd.device)
-            batch = ibmd.sample(
-                sample_size=batch_size, label=labels.to(ibmd.device), seed=seed,
-            ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
-            batch = (batch * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
-            fake_images.append(batch)
+        for _ in range(self.num_sample_per_class):
+            for class_idx in range(0, self.num_sample_per_class, self.batch_size):
+                batch_size = min(self.batch_size, self.num_sample_per_class - len(fake_images))
+                labels = torch.full((batch_size,), class_idx, dtype=torch.long).to(ibmd.device)
+                batch = ibmd.sample(
+                    sample_size=batch_size, label=labels.to(ibmd.device), seed=seed,
+                ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
+                batch = (batch * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
+                fake_images.append(batch)
         fake_images = np.concatenate(fake_images, axis=0)
 
         # Save generated images temporarily (clean-fid requires images on disk)
@@ -124,7 +133,7 @@ class ImageDataCallback(IBMDCallback):
             dataset_res=self.img_resolution,
             dataset_split=self.dataset_split,
             device=ibmd.device,
-            batch_size=self.fid_batch_size,
+            batch_size=self.batch_size,
             mode="clean",
         )
         with open(f"{eval_dir}/fid.txt", "a") as f:

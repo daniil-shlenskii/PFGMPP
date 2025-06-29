@@ -16,12 +16,20 @@ train:
 eval:
   log_every: 50
   eval_every: 100
-  callback:
-    _target_: ibmd.training.callbacks.ImageDataCallback
-    n_classes: *n_classes
-    sample_size_per_class: 2
-    img_channels: *img_channels
-    img_resolution: *img_resolution
+  callbacks:
+    - _target_: ibmd.training.callbacks.VisualizeImageModelCallback
+      img_channels: *img_channels
+      img_resolution: *img_resolution
+      n_classes: *n_classes
+      sample_size_per_class: 2
+    - _target_: ibmd.training.callbacks.FIDCallback
+      img_channels: *img_channels
+      img_resolution: *img_resolution
+      n_classes: *n_classes
+      dataset_name: cifar10
+      dataset_split: test
+      num_samples_per_class: 1000
+      batch_size: 1024
 
 ibmd:
   n_classes: *n_classes

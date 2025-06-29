@@ -57,7 +57,6 @@ def training_loop(
     callbacks: Optional[dict | list[dict]] = None,
     verbose: bool = True,
 ):
-    print(f"{callbacks = }")
     teacher_net = instantiate(teacher_net_config)
     teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location="cpu"))
     teacher_dynamics = instantiate(teacher_dynamics_config)
