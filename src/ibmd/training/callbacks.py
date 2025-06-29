@@ -35,7 +35,8 @@ class TwoDimCallback(IBMDCallback):
         gens = ibmd.sample(sample_size=self.sample_size, label=self.labels.to(ibmd.device)).cpu().numpy()
         plt.figure(figsize=(4, 4))
         sns.scatterplot(x=gens[:, 0], y=gens[:, 1], hue=self.labels)
-        plt.xlabel(""); plt.ylabel("")
+        plt.xlabel("")
+        plt.ylabel("")
         plt.savefig(f"{eval_dir}/{it}.png")
         plt.close()
 
@@ -94,7 +95,7 @@ class FIDCallback(IBMDCallback):
         dataset_name: str,
         dataset_split: str,
         #
-        num_sample_per_class: int,
+        num_samples_per_class: int,
         batch_size: int,
     ):
         self.img_channels = img_channels
@@ -104,20 +105,22 @@ class FIDCallback(IBMDCallback):
         self.dataset_name = dataset_name
         self.dataset_split = dataset_split
 
-        self.num_sample_per_class = num_sample_per_class
+        self.num_samples_per_class = num_samples_per_class
         self.batch_size = batch_size
 
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
         fake_images = []
-        for _ in range(self.num_sample_per_class):
-            for class_idx in range(0, self.num_sample_per_class, self.batch_size):
-                batch_size = min(self.batch_size, self.num_sample_per_class - len(fake_images))
+        for _ in range(self.n_classes):
+            collected_images = 0
+            for class_idx in range(0, self.num_samples_per_class, self.batch_size):
+                batch_size = min(self.batch_size, self.num_samples_per_class - collected_images)
                 labels = torch.full((batch_size,), class_idx, dtype=torch.long).to(ibmd.device)
                 batch = ibmd.sample(
                     sample_size=batch_size, label=labels.to(ibmd.device), seed=seed,
                 ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
                 batch = (batch * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
                 fake_images.append(batch)
+                collected_images += len(batch)
         fake_images = np.concatenate(fake_images, axis=0)
 
         # Save generated images temporarily (clean-fid requires images on disk)
