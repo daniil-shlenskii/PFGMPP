@@ -7,8 +7,9 @@ import torch.nn as nn
 from hydra.utils import instantiate
 from tqdm import tqdm
 
-from ibmd.core.ibmd_ddp import IBMD_DDP
 from ibmd.core.ibmd import IBMD
+from ibmd.core.ibmd_ddp import IBMD_DDP
+from ibmd.training.callbacks import CallbacksHandler
 
 
 def setup(backend="auto"):
@@ -53,16 +54,19 @@ def training_loop(
     #
     log_every: int = 500,
     eval_every: int = 500,
-    callback: Optional[dict] = None,
+    callbacks: Optional[dict | list[dict]] = None,
     verbose: bool = True,
 ):
+    print(f"{callbacks = }")
     teacher_net = instantiate(teacher_net_config)
     teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location="cpu"))
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
 
-    if callback is not None:
-        callback = instantiate(callback)
+    if callbacks is not None:
+        callbacks = CallbacksHandler(
+            callbacks=[instantiate(callback) for callback in callbacks]
+        )
 
     training_loop_instantiated(
         run_dir=run_dir,
@@ -81,7 +85,7 @@ def training_loop(
         #
         log_every=log_every,
         eval_every=eval_every,
-        callback=callback,
+        callbacks=callbacks,
         verbose=verbose,
     )
 
@@ -103,7 +107,7 @@ def training_loop_instantiated(
     #
     log_every: int = 500,
     eval_every: int = 500,
-    callback: Optional[Callable] = None,
+    callbacks: Optional[Callable] = None,
     verbose: bool = True,
 ):
     # setup run dir
@@ -155,8 +159,8 @@ def training_loop_instantiated(
         if it % log_every == 0:
             pbar.set_postfix(student_loss=acc_batch_loss)
             acc_batch_loss = 0.
-        if rank == 0 and callback is not None and it % eval_every == 0:
-            callback(ibmd, it=it, eval_dir=eval_dir)
+        if rank == 0 and callbacks is not None and it % eval_every == 0:
+            callbacks(ibmd, it=it, eval_dir=eval_dir)
             ibmd.save(ckpt_path)
         if it == n_iters:
             break

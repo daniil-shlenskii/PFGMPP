@@ -1,21 +1,19 @@
 import os
 import pickle
 import sys
-from typing import Any, Callable, Optional
+from typing import Optional
 
 import hydra
-import torch
-import torch.distributed as dist
 import torch.nn as nn
 import torch.nn.functional as F
-from constants import DNNLIB_DIR, EDM_UTILS_DIR, TORCH_UTILS_DIR
+from constants import (ARTIFACTS_DIR, CHECKPOINTS_DIR, DNNLIB_DIR,
+                       EDM_UTILS_DIR, TORCH_UTILS_DIR)
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from torch import LongTensor, Tensor
-from tqdm import tqdm
 
+from ibmd.training.callbacks import CallbacksHandler
 from ibmd.training.training_loop import training_loop_instantiated
-from constants import ARTIFACTS_DIR, CHECKPOINTS_DIR
 
 
 class EDMNetWrapper(nn.Module):
@@ -79,7 +77,7 @@ def training_loop(
     #
     log_every: int = 500,
     eval_every: int = 500,
-    callback: Optional[dict] = None,
+    callbacks: Optional[dict | list[dict]] = None,
     verbose: bool = True,
 ):
     edm_net = load_edm_net(teacher_net_ckpt_path)
@@ -94,8 +92,10 @@ def training_loop(
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
 
-    if callback is not None:
-        callback = instantiate(callback)
+    if callbacks is not None:
+        callbacks = CallbacksHandler(
+            callbacks=[instantiate(callback) for callback in callbacks]
+        )
 
     training_loop_instantiated(
         run_dir=run_dir,
@@ -114,7 +114,7 @@ def training_loop(
         #
         log_every=log_every,
         eval_every=eval_every,
-        callback=callback,
+        callbacks=callbacks,
         verbose=verbose,
     )
 
@@ -140,7 +140,7 @@ def main(config: DictConfig):
         #
         log_every=config.eval.log_every,
         eval_every=config.eval.eval_every,
-        callback=config.eval.get("callback", {}),
+        callbacks=config.eval.get("callbacks", {}),
         verbose=config.eval.get("verbose", True),
     )
 

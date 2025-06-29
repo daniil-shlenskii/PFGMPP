@@ -1,3 +1,4 @@
+import abc
 import os
 
 import matplotlib.pyplot as plt
@@ -9,7 +10,21 @@ from cleanfid import fid
 from ibmd.core import IBMD
 
 
-class TwoDimCallback:
+class IBMDCallback(abc.ABC):
+    @abc.abstractmethod
+    def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
+        pass
+
+class CallbacksHandler(IBMDCallback):
+    def __init__(self, callbacks: list = None):
+        self.callbacks = callbacks or []
+
+    def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
+        for callback in self.callbacks:
+            callback(ibmd, it, eval_dir, seed)
+
+
+class TwoDimCallback(IBMDCallback):
     def __init__(self, sample_size: int):
         self.sample_size = sample_size
         self.labels = torch.concatenate([
@@ -24,7 +39,7 @@ class TwoDimCallback:
         plt.savefig(f"{eval_dir}/{it}.png")
         plt.close()
 
-class ImageDataCallback:
+class ImageDataCallback(IBMDCallback):
     def __init__(
         self,
         # dataset params
