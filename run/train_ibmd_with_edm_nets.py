@@ -15,6 +15,7 @@ from torch import LongTensor, Tensor
 from tqdm import tqdm
 
 from ibmd.training.training_loop import training_loop_instantiated
+from constants import ARTIFACTS_DIR, CHECKPOINTS_DIR
 
 
 class EDMNetWrapper(nn.Module):
@@ -121,17 +122,26 @@ def training_loop(
 def main(config: DictConfig):
     print(OmegaConf.to_yaml(config))
     training_loop(
+        run_dir=os.path.join(ARTIFACTS_DIR, config.train.run_dir),
+        #
+        batch_size=config.train.batch_size,
+        inner_problem_iters=config.train.inner_problem_iters,
+        n_iters=config.train.n_iters,
+        #
         img_channels=config.ibmd.teacher.img_channels,
         img_resolution=config.ibmd.teacher.img_resolution,
-        teacher_net_ckpt_path=config.ibmd.teacher.ckpt_path,
+        teacher_net_ckpt_path=os.path.join(CHECKPOINTS_DIR, config.ibmd.teacher.ckpt_path),
         teacher_dynamics_config=config.ibmd.teacher.dynamics,
         teacher_loss_fn_config=config.ibmd.teacher.loss,
         student_net_optimizer_config=config.ibmd.student.net_optimizer,
         student_data_estimator_net_optimizer_config=config.ibmd.student.data_estimator_net_optimizer,
         ema_decay=config.ibmd.ema_decay,
         n_classes=config.ibmd.n_classes,
-        **config.train,
-        **config.eval,
+        #
+        log_every=config.eval.log_every,
+        eval_every=config.eval.eval_every,
+        callback=config.eval.get("callback", {}),
+        verbose=config.eval.get("verbose", True),
     )
 
 if __name__ == "__main__":
