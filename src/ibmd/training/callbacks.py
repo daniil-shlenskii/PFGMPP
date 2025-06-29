@@ -88,9 +88,10 @@ class ImageDataCallback:
         fake_images = []
         for _ in range(0, self.fid_num_samples, self.fid_batch_size):
             batch_size = min(self.fid_batch_size, self.fid_num_samples - len(fake_images))
-            z = torch.randn(batch_size, ibmd.latent_dim).to(ibmd.device)
             labels = torch.randint(0, self.n_classes, (batch_size,)).to(ibmd.device)
-            batch = ibmd.sample(z, labels).cpu().numpy()
+            batch = ibmd.sample(
+                sample_size=batch_size, label=labels.to(ibmd.device), seed=seed,
+            ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
             batch = (batch * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
             fake_images.append(batch)
         fake_images = np.concatenate(fake_images, axis=0)
