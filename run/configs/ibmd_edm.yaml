@@ -9,7 +9,7 @@ problem:
 
 train:
   n_iters: 100_000
-  inner_problem_iters: 1
+  inner_problem_iters: 5
   batch_size: 256 
   run_dir: ibmd/${problem.teacher_ckpt_dir}/${problem.teacher_ckpt_name}
 
@@ -53,7 +53,7 @@ ibmd:
 
   student:
     net_optimizer:
-      lr: 5e-5
+      lr: 1e-4
 
     data_estimator_net_optimizer:
       lr: 1e-4

@@ -110,13 +110,13 @@ class FIDCallback(IBMDCallback):
 
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
         fake_images = []
-        for _ in range(self.n_classes):
+        for class_idx in range(self.n_classes):
             collected_images = 0
-            for class_idx in range(0, self.num_samples_per_class, self.batch_size):
+            for i in range(0, self.num_samples_per_class, self.batch_size):
                 batch_size = min(self.batch_size, self.num_samples_per_class - collected_images)
                 labels = torch.full((batch_size,), class_idx, dtype=torch.long).to(ibmd.device)
                 batch = ibmd.sample(
-                    sample_size=batch_size, label=labels.to(ibmd.device), seed=seed,
+                    sample_size=batch_size, label=labels.to(ibmd.device), seed=i,
                 ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
                 batch = (batch * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
                 fake_images.append(batch)
