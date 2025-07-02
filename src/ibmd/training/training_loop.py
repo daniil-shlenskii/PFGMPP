@@ -158,7 +158,7 @@ def training_loop_instantiated(
         if it % log_every == 0:
             pbar.set_postfix(student_loss=acc_batch_loss)
             acc_batch_loss = 0.
-        if rank == 0 and callbacks is not None and it % eval_every == 0:
+        if it != 0 and rank == 0 and callbacks is not None and it % eval_every == 0:
             callbacks(ibmd, it=it, eval_dir=eval_dir)
             ibmd.save(ckpt_path)
         if it == n_iters:
