@@ -17,6 +17,7 @@ class IBMD:
         teacher_net: nn.Module,
         teacher_loss_fn: Callable,
         student_net_optimizer_config: dict,
+        student_t_init_fraction: float = 1.,
         student_data_estimator_net_config: dict,
         n_classes: int = None,
         ema_decay: float = 0.999,
@@ -44,6 +45,8 @@ class IBMD:
             **student_data_estimator_net_config,
         )
 
+        self.student_t_init_fraction = student_t_init_fraction
+
     def _setup(self):
         student_net = deepcopy(self.teacher_net).to(self.device)
         student_data_estimator_net = deepcopy(self.teacher_net).to(self.device)
@@ -53,7 +56,7 @@ class IBMD:
     @torch.no_grad()
     def sample(self, *, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
         prior_samples = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
-        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max).to(self.device)
+        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max * self.student_t_init_fraction).to(self.device)
         return self.student_net_ema.ema(x=prior_samples, t=t, label=label)
 
     def train_step(self, *, batch_size, inner_problem_iters: int):
