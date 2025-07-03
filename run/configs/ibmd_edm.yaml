@@ -10,7 +10,7 @@ problem:
 train:
   n_iters: 100_000
   inner_problem_iters: 5
-  batch_size: 256 
+  batch_size: 128
   run_dir: ibmd/${problem.teacher_ckpt_dir}/${problem.teacher_ckpt_name}
 
 eval:
@@ -36,7 +36,7 @@ ibmd:
   other:
     n_classes: *n_classes
     ema_decay: 0.99
-    t_init_fraction: 0.8
+    student_t_init_fraction: 0.8
     remove_dropout: True
 
   teacher:
@@ -48,8 +48,16 @@ ibmd:
       D: 2048
 
     loss:
-      _target_: pfgmpp.training.losses.EDMLoss
+      _target_: pfgmpp.training.losses.TargetPredictionLoss
+      sigma_prior_mode: log_normal
+      loss_weights_mode: edm
 
+    loss_for_student:
+      _target_: pfgmpp.training.losses.TargetPredictionLoss
+      sigma_prior_mode: log_normal
+      loss_weights_mode: edm
+
+    n_classes: *n_classes
     img_channels: *img_channels
     img_resolution: *img_resolution
 
