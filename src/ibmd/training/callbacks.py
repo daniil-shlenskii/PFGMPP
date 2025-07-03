@@ -97,6 +97,8 @@ class FIDCallback(IBMDCallback):
         #
         num_samples_per_class: int,
         batch_size: int,
+        #
+        mode: str = "clean"
     ):
         self.img_channels = img_channels
         self.img_resolution = img_resolution
@@ -108,6 +110,8 @@ class FIDCallback(IBMDCallback):
         self.num_samples_per_class = num_samples_per_class
         self.batch_size = batch_size
 
+        self.mode = mode
+
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
         fake_images = []
         for class_idx in range(self.n_classes):
@@ -118,7 +122,7 @@ class FIDCallback(IBMDCallback):
                 batch = ibmd.sample(
                     sample_size=batch_size, label=labels.to(ibmd.device), seed=i,
                 ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
-                batch = (batch * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
+                batch = (batch.clip(-1, 1) * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
                 fake_images.append(batch)
                 collected_images += len(batch)
         fake_images = np.concatenate(fake_images, axis=0)
@@ -137,7 +141,7 @@ class FIDCallback(IBMDCallback):
             dataset_split=self.dataset_split,
             device=ibmd.device,
             batch_size=self.batch_size,
-            mode="clean",
+            mode=self.mode,
         )
         with open(f"{eval_dir}/fid.txt", "a") as f:
             f.write(f"{it}: {score:.3f}\n")
