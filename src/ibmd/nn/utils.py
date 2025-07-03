@@ -10,7 +10,7 @@ def freeze_model(model: nn.Module):
     for param in model.parameters():
         param.requires_grad = False
 
-def remove_dropout(model: nn.Module):
+def remove_dropout_from_model(model: nn.Module):
     for name, module in model.named_modules():
         if isinstance(module, nn.Dropout):
             # Need to get parent module to replace the dropout
