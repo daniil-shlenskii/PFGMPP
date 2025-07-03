@@ -59,26 +59,31 @@ def load_edm_net(ckpt_path: str) -> nn.Module:
 def training_loop(
     *,
     run_dir: str,
-    #
-    batch_size: int,
-    inner_problem_iters: int,
-    n_iters: int,
-    #
+    # Teacher
+    n_classes: int,
     img_channels: int,
     img_resolution: int,
     teacher_net_ckpt_path: str,
     teacher_dynamics_config: dict,
     teacher_loss_fn_config: dict,
-    student_net_optimizer_config: dict,
+    # Student data estimator
     student_data_estimator_net_optimizer_config: dict,
-    teacher_loss_dynamics_key: str = "pfgmpp",
-    n_classes: int = None,
-    ema_decay: float = 0.999,
-    #
+    # Student
+    student_net_optimizer_config: dict,
+    teacher_loss_fn_for_student_config: dict | None,
+    # Other kwargs
+    ibmd_kwargs: dict,
+    # Training 
+    batch_size: int,
+    inner_problem_iters: int,
+    n_iters: int,
+    # Evaluation
     log_every: int = 500,
     eval_every: int = 500,
     callbacks: Optional[dict | list[dict]] = None,
     verbose: bool = True,
+    #
+    teacher_loss_dynamics_key: str = "pfgmpp",
 ):
     edm_net = load_edm_net(teacher_net_ckpt_path)
     teacher_net = EDMNetWrapper(
@@ -91,6 +96,10 @@ def training_loop(
         p.requires_grad = True
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
+    if teacher_loss_fn_for_student_config is not None:
+        teacher_loss_fn_for_student = instantiate(teacher_loss_fn_for_student_config, **{teacher_loss_dynamics_key: teacher_dynamics})
+    else:
+        teacher_loss_fn_for_student = None 
 
     if callbacks is not None:
         callbacks = CallbacksHandler(
@@ -103,10 +112,13 @@ def training_loop(
         teacher_dynamics=teacher_dynamics,
         teacher_net=teacher_net,
         teacher_loss_fn=teacher_loss_fn,
-        student_net_optimizer_config=student_net_optimizer_config,
+        #
         student_data_estimator_net_optimizer_config=student_data_estimator_net_optimizer_config,
-        n_classes=n_classes,
-        ema_decay=ema_decay,
+        #
+        student_net_optimizer_config=student_net_optimizer_config,
+        teacher_loss_fn_for_student=teacher_loss_fn_for_student,
+        #
+        ibmd_kwargs=ibmd_kwargs,
         #
         batch_size=batch_size,
         inner_problem_iters=inner_problem_iters,
@@ -124,20 +136,25 @@ def main(config: DictConfig):
     training_loop(
         run_dir=os.path.join(ARTIFACTS_DIR, config.train.run_dir),
         #
-        batch_size=config.train.batch_size,
-        inner_problem_iters=config.train.inner_problem_iters,
-        n_iters=config.train.n_iters,
-        #
+        # Teacher
+        n_classes=config.ibmd.teacher.n_classes,
         img_channels=config.ibmd.teacher.img_channels,
         img_resolution=config.ibmd.teacher.img_resolution,
         teacher_net_ckpt_path=os.path.join(CHECKPOINTS_DIR, config.ibmd.teacher.ckpt_path),
         teacher_dynamics_config=config.ibmd.teacher.dynamics,
         teacher_loss_fn_config=config.ibmd.teacher.loss,
-        student_net_optimizer_config=config.ibmd.student.net_optimizer,
+        # Student data estimator
         student_data_estimator_net_optimizer_config=config.ibmd.student.data_estimator_net_optimizer,
-        ema_decay=config.ibmd.ema_decay,
-        n_classes=config.ibmd.n_classes,
+        # Student
+        student_net_optimizer_config=config.ibmd.student.net_optimizer,
+        teacher_loss_fn_for_student_config=config.ibmd.teacher.get("loss_for_student"),
         #
+        ibmd_kwargs=config.ibmd.other,
+        # Training
+        batch_size=config.train.batch_size,
+        inner_problem_iters=config.train.inner_problem_iters,
+        n_iters=config.train.n_iters,
+        # Evaluation
         log_every=config.eval.log_every,
         eval_every=config.eval.eval_every,
         callbacks=config.eval.get("callbacks", {}),

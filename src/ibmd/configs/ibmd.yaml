@@ -16,8 +16,11 @@ eval:
       sample_size: 10_000
 
 ibmd:
-  n_classes: *n_classes
-  ema_decay: 0.99
+  other:
+    ema_decay: 0.99
+    n_classes: *n_classes
+    remove_dropout: True
+    student_t_init_fraction: 1.
 
   teacher:
     dynamics:
@@ -48,8 +51,6 @@ ibmd:
     ckpt_path: /Users/shlenskii/Desktop/github/pfgmpp/artifacts/notebooks_outputs/toy/gaussians/conditional/11.pt
 
   student:
-    t_init_fraction: 1.
-
     net_optimizer: &net_optimizer
       lr: 1e-4
 

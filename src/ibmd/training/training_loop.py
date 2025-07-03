@@ -37,30 +37,29 @@ def is_ddp():
 def training_loop(
     *,
     run_dir: str,
-    #
-    batch_size: int,
-    inner_problem_iters: int,
-    n_iters: int,
-    #
+    # Teacher
     teacher_net_config: dict,
     teacher_net_ckpt_path: str,
     teacher_dynamics_config: dict,
     teacher_loss_fn_config: dict,
-    #
+    # Student data estimator
     student_data_estimator_net_optimizer_config: dict,
-    #
+    # Student
     student_net_optimizer_config: dict,
-    teacher_loss_fn_for_student_config: dict,
-    student_t_init_fraction: float,
-    #
-    teacher_loss_dynamics_key: str = "pfgmpp",
-    n_classes: int = None,
-    ema_decay: float = 0.999,
-    #
+    teacher_loss_fn_for_student_config: dict | None,
+    # Other kwargs
+    ibmd_kwargs: dict,
+    # Training
+    batch_size: int,
+    inner_problem_iters: int,
+    n_iters: int,
+    # Evaluation
     log_every: int = 500,
     eval_every: int = 500,
     callbacks: Optional[dict | list[dict]] = None,
     verbose: bool = True,
+    #
+    teacher_loss_dynamics_key: str = "pfgmpp",
 ):
     teacher_net = instantiate(teacher_net_config)
     teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location="cpu"))
@@ -87,10 +86,8 @@ def training_loop(
         #
         student_net_optimizer_config=student_net_optimizer_config,
         teacher_loss_fn_for_student=teacher_loss_fn_for_student,
-        student_t_init_fraction=student_t_init_fraction,
         #
-        n_classes=n_classes,
-        ema_decay=ema_decay,
+        ibmd_kwargs=ibmd_kwargs,
         #
         batch_size=batch_size,
         inner_problem_iters=inner_problem_iters,
@@ -105,25 +102,22 @@ def training_loop(
 def training_loop_instantiated(
     *,
     run_dir: str,
-    #
+    # Teacher
     teacher_dynamics: Any,
     teacher_net: nn.Module,
     teacher_loss_fn: Callable,
-    #
+    # Student data estimator
     student_data_estimator_net_optimizer_config: dict,
-    #
+    # Student
     student_net_optimizer_config: dict,
     teacher_loss_fn_for_student: Callable,
-    student_t_init_fraction: int,
-    #
-    n_classes: int,
-    ema_decay: float,
-    #
+    # Other kwargs
+    ibmd_kwargs: dict,
+    # Training
     batch_size: int,
     inner_problem_iters: int,
     n_iters: int,
-    #
-    #
+    # Evaluation
     log_every: int = 500,
     eval_every: int = 500,
     callbacks: Optional[Callable] = None,
@@ -148,10 +142,9 @@ def training_loop_instantiated(
             #
             student_net_optimizer_config=student_net_optimizer_config,
             teacher_loss_fn_for_student=teacher_loss_fn_for_student,
-            student_t_init_fraction=student_t_init_fraction,
             #
-            n_classes=n_classes,
-            ema_decay=ema_decay,
+            **ibmd_kwargs,
+            #
             rank=rank,
             local_rank=local_rank,
         )
@@ -170,10 +163,8 @@ def training_loop_instantiated(
             #
             student_net_optimizer_config=student_net_optimizer_config,
             teacher_loss_fn_for_student=teacher_loss_fn_for_student,
-            student_t_init_fraction=student_t_init_fraction,
             #
-            n_classes=n_classes,
-            ema_decay=ema_decay,
+            **ibmd_kwargs,
         )
 
     pbar = tqdm(range(n_iters), total=n_iters, dynamic_ncols=True, colour="green", disable=not verbose or rank != 0)

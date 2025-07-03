@@ -27,13 +27,17 @@ eval:
       img_resolution: *img_resolution
       n_classes: *n_classes
       dataset_name: cifar10
-      dataset_split: test
+      dataset_split: train
       num_samples_per_class: 1000
       batch_size: 1024
+      mode: legacy_tensorflow
 
 ibmd:
-  n_classes: *n_classes
-  ema_decay: 0.99
+  other:
+    n_classes: *n_classes
+    ema_decay: 0.99
+    t_init_fraction: 0.8
+    remove_dropout: True
 
   teacher:
     dynamics:
@@ -52,8 +56,7 @@ ibmd:
     ckpt_path: ${problem.teacher_ckpt_dir}/${problem.teacher_ckpt_name}.pkl
 
   student:
-    net_optimizer:
-      lr: 1e-4
+    net_optimizer: &net_optimizer
+      lr: 5e-5
 
-    data_estimator_net_optimizer:
-      lr: 1e-4
+    data_estimator_net_optimizer: *net_optimizer
