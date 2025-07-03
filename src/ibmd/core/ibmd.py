@@ -76,6 +76,11 @@ class IBMD:
         t = torch.full((sample_size,), self.teacher_dynamics.sigma_max * self.student_t_init_fraction).to(self.device)
         return self.student_net_ema.ema(x=prior_samples, t=t, label=label)
 
+    def sample_from_student(self, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
+        prior_samples = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
+        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max * self.student_t_init_fraction).to(self.device)
+        return self.student_net(x=prior_samples, t=t, label=label)
+
     def train_step(self, *, batch_size, inner_problem_iters: int):
         for _ in range(inner_problem_iters):
             _ = self.update_student_data_estimator(batch_size=batch_size)
@@ -92,7 +97,7 @@ class IBMD:
             label = torch.randint(0, self.n_classes, (batch_size,)).to(self.device)
 
         shared_seed = torch.randint(0, 2**32, (1,)).item()
-        student_batch = self._sample_from_student(sample_size=batch_size, label=label)
+        student_batch = self.sample_from_student(sample_size=batch_size, label=label)
         teacher_loss = self.teacher_loss_fn_for_student(net=self.teacher_net, x=student_batch, label=label, seed=shared_seed)
         student_data_estimator_loss = self.teacher_loss_fn_for_student(net=self.student_data_estimator_net, x=student_batch, label=label, seed=shared_seed)
         loss = (teacher_loss - student_data_estimator_loss).mean()
@@ -114,7 +119,7 @@ class IBMD:
             label = torch.randint(0, self.n_classes, (batch_size,)).to(self.device)
 
         with torch.no_grad():
-            student_batch = self._sample_from_student(sample_size=batch_size, label=label)
+            student_batch = self.sample_from_student(sample_size=batch_size, label=label)
         loss = self.teacher_loss_fn(
             net=self.student_data_estimator_net, x=student_batch, label=label
         ).mean()
@@ -124,11 +129,6 @@ class IBMD:
         self.student_data_estimator_net_optimizer.step()
 
         return loss.item()
-
-    def _sample_from_student(self, sample_size: int, label: Optional[LongTensor]=None):
-        prior_samples = self.teacher_dynamics.sample_from_prior(sample_size).to(self.device)
-        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max).to(self.device)
-        return self.student_net(x=prior_samples, t=t, label=label)
 
     def save(self, save_path: str):
         torch.save(self.student_net_ema.state_dict(), save_path)

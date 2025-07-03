@@ -37,7 +37,7 @@ ibmd:
     n_classes: *n_classes
     ema_decay: 0.99
     student_t_init_fraction: 0.8
-    remove_dropout: True
+    remove_dropout: True 
 
   teacher:
     dynamics:
@@ -65,6 +65,6 @@ ibmd:
 
   student:
     net_optimizer: &net_optimizer
-      lr: 5e-5
+      lr: 1e-4
 
     data_estimator_net_optimizer: *net_optimizer
