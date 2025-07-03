@@ -15,11 +15,15 @@ class PFGMPPLoss(abc.ABC):
         self,
         *,
         pfgmpp: PFGMPP,
-        loss_weight_mode: str,
+        loss_weights_mode: str,
         sigma_prior_mode: str,
     ):
         self.pfgmpp = pfgmpp
-        self.loss_weights = get_loss_weights(mode=loss_weight_mode)
+        self.loss_weights = get_loss_weights(
+            mode=loss_weights_mode,
+            sigma_min=pfgmpp.sigma_min,
+            sigma_max=pfgmpp.sigma_max,
+        )
         self.sample_from_sigma_prior = get_sigma_prior(
             mode=sigma_prior_mode,
             sigma_min=pfgmpp.sigma_min,
@@ -35,12 +39,12 @@ class TargetPredictionLoss(PFGMPPLoss):
         self,
         *,
         pfgmpp: PFGMPP,
-        loss_weight_mode: str = "edm",
+        loss_weights_mode: str = "edm",
         sigma_prior_mode: str = "log_normal",
     ):
         super().__init__(
             pfgmpp=pfgmpp,
-            loss_weight_mode=loss_weight_mode,
+            loss_weights_mode=loss_weights_mode,
             sigma_prior_mode=sigma_prior_mode
         )
 

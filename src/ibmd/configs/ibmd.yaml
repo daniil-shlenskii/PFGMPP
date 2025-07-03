@@ -28,7 +28,14 @@ ibmd:
       D: 2048
 
     loss:
-      _target_: pfgmpp.training.losses.EDMLoss
+      _target_: pfgmpp.training.losses.TargetPredictionLoss
+      sigma_prior_mode: log_normal
+      loss_weights_mode: edm
+
+    loss_for_student:
+      _target_: pfgmpp.training.losses.TargetPredictionLoss
+      sigma_prior_mode: log_normal
+      loss_weights_mode: edm
 
     net:
       _target_: pfgmpp.training.networks.TimeConditionedMLP
@@ -41,8 +48,9 @@ ibmd:
     ckpt_path: /Users/shlenskii/Desktop/github/pfgmpp/artifacts/notebooks_outputs/toy/gaussians/conditional/11.pt
 
   student:
-    net_optimizer:
+    t_init_fraction: 1.
+
+    net_optimizer: &net_optimizer
       lr: 1e-4
 
-    data_estimator_net_optimizer:
-      lr: 1e-4
+    data_estimator_net_optimizer: *net_optimizer

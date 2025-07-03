@@ -13,12 +13,17 @@ class IBMD:
     def __init__(
         self,
         *,
+        # teacher
         teacher_dynamics: Any,
         teacher_net: nn.Module,
         teacher_loss_fn: Callable,
-        student_net_optimizer_config: dict,
-        student_t_init_fraction: float = 1.,
+        # student data estimator
         student_data_estimator_net_config: dict,
+        # student
+        student_net_optimizer_config: dict,
+        teacher_loss_fn_for_student: Callable = None,
+        student_t_init_fraction: float = 1.,
+        #
         n_classes: int = None,
         ema_decay: float = 0.999,
         remove_dropout: bool = False,
@@ -26,6 +31,11 @@ class IBMD:
         self.teacher_dynamics = teacher_dynamics
         self.teacher_net = teacher_net
         self.teacher_loss_fn = teacher_loss_fn
+        self.teacher_loss_fn_for_student = (
+            teacher_loss_fn_for_student
+            if teacher_loss_fn_for_student is not None
+            else teacher_loss_fn
+        )
 
         self.n_classes = n_classes
         self.ema_decay = ema_decay
@@ -83,8 +93,8 @@ class IBMD:
 
         shared_seed = torch.randint(0, 2**32, (1,)).item()
         student_batch = self._sample_from_student(sample_size=batch_size, label=label)
-        teacher_loss = self.teacher_loss_fn(net=self.teacher_net, x=student_batch, label=label, seed=shared_seed)
-        student_data_estimator_loss = self.teacher_loss_fn(net=self.student_data_estimator_net, x=student_batch, label=label, seed=shared_seed)
+        teacher_loss = self.teacher_loss_fn_for_student(net=self.teacher_net, x=student_batch, label=label, seed=shared_seed)
+        student_data_estimator_loss = self.teacher_loss_fn_for_student(net=self.student_data_estimator_net, x=student_batch, label=label, seed=shared_seed)
         loss = (teacher_loss - student_data_estimator_loss).mean()
 
         self.student_net_optimizer.zero_grad()

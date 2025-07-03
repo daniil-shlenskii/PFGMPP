@@ -17,6 +17,7 @@ def main(config: DictConfig):
         teacher_net_ckpt_path=config.ibmd.teacher.ckpt_path,
         teacher_dynamics_config=config.ibmd.teacher.dynamics,
         teacher_loss_fn_config=config.ibmd.teacher.loss,
+        teacher_loss_fn_for_student_config=config.ibmd.teacher.loss_for_student,
         student_net_optimizer_config=config.ibmd.student.net_optimizer,
         student_data_estimator_net_optimizer_config=config.ibmd.student.data_estimator_net_optimizer,
         ema_decay=config.ibmd.ema_decay,

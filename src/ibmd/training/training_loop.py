@@ -46,8 +46,13 @@ def training_loop(
     teacher_net_ckpt_path: str,
     teacher_dynamics_config: dict,
     teacher_loss_fn_config: dict,
-    student_net_optimizer_config: dict,
+    #
     student_data_estimator_net_optimizer_config: dict,
+    #
+    student_net_optimizer_config: dict,
+    teacher_loss_fn_for_student_config: dict,
+    student_t_init_fraction: float,
+    #
     teacher_loss_dynamics_key: str = "pfgmpp",
     n_classes: int = None,
     ema_decay: float = 0.999,
@@ -61,6 +66,10 @@ def training_loop(
     teacher_net.load_state_dict(torch.load(teacher_net_ckpt_path, map_location="cpu"))
     teacher_dynamics = instantiate(teacher_dynamics_config)
     teacher_loss_fn = instantiate(teacher_loss_fn_config, **{teacher_loss_dynamics_key: teacher_dynamics})
+    if teacher_loss_fn_for_student_config is not None:
+        teacher_loss_fn_for_student = instantiate(teacher_loss_fn_for_student_config, **{teacher_loss_dynamics_key: teacher_dynamics})
+    else:
+        teacher_loss_fn_for_student = None 
 
     if callbacks is not None:
         callbacks = CallbacksHandler(
@@ -73,8 +82,13 @@ def training_loop(
         teacher_dynamics=teacher_dynamics,
         teacher_net=teacher_net,
         teacher_loss_fn=teacher_loss_fn,
-        student_net_optimizer_config=student_net_optimizer_config,
+        #
         student_data_estimator_net_optimizer_config=student_data_estimator_net_optimizer_config,
+        #
+        student_net_optimizer_config=student_net_optimizer_config,
+        teacher_loss_fn_for_student=teacher_loss_fn_for_student,
+        student_t_init_fraction=student_t_init_fraction,
+        #
         n_classes=n_classes,
         ema_decay=ema_decay,
         #
@@ -95,14 +109,20 @@ def training_loop_instantiated(
     teacher_dynamics: Any,
     teacher_net: nn.Module,
     teacher_loss_fn: Callable,
-    student_net_optimizer_config: dict,
+    #
     student_data_estimator_net_optimizer_config: dict,
+    #
+    student_net_optimizer_config: dict,
+    teacher_loss_fn_for_student: Callable,
+    student_t_init_fraction: int,
+    #
     n_classes: int,
     ema_decay: float,
     #
     batch_size: int,
     inner_problem_iters: int,
     n_iters: int,
+    #
     #
     log_every: int = 500,
     eval_every: int = 500,
@@ -123,8 +143,13 @@ def training_loop_instantiated(
             teacher_dynamics=teacher_dynamics,
             teacher_net=teacher_net.to(device),
             teacher_loss_fn=teacher_loss_fn,
-            student_net_optimizer_config=student_net_optimizer_config,
+            #
             student_data_estimator_net_config=student_data_estimator_net_optimizer_config,
+            #
+            student_net_optimizer_config=student_net_optimizer_config,
+            teacher_loss_fn_for_student=teacher_loss_fn_for_student,
+            student_t_init_fraction=student_t_init_fraction,
+            #
             n_classes=n_classes,
             ema_decay=ema_decay,
             rank=rank,
@@ -140,8 +165,13 @@ def training_loop_instantiated(
             teacher_dynamics=teacher_dynamics,
             teacher_net=teacher_net.to(device),
             teacher_loss_fn=teacher_loss_fn,
-            student_net_optimizer_config=student_net_optimizer_config,
+            #
             student_data_estimator_net_config=student_data_estimator_net_optimizer_config,
+            #
+            student_net_optimizer_config=student_net_optimizer_config,
+            teacher_loss_fn_for_student=teacher_loss_fn_for_student,
+            student_t_init_fraction=student_t_init_fraction,
+            #
             n_classes=n_classes,
             ema_decay=ema_decay,
         )
