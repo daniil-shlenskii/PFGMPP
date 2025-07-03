@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import LongTensor
 
 from ibmd.nn.ema import ModelEMA
-from ibmd.nn.utils import get_device_from_net
+from ibmd.nn.utils import get_device_from_net, remove_dropout_from_model
 
 
 class IBMD:
@@ -21,6 +21,7 @@ class IBMD:
         student_data_estimator_net_config: dict,
         n_classes: int = None,
         ema_decay: float = 0.999,
+        remove_dropout: bool = False,
     ):
         self.teacher_dynamics = teacher_dynamics
         self.teacher_net = teacher_net
@@ -28,6 +29,7 @@ class IBMD:
 
         self.n_classes = n_classes
         self.ema_decay = ema_decay
+        self.remove_dropout = remove_dropout
         self.device = get_device_from_net(teacher_net)
 
         (
@@ -51,6 +53,11 @@ class IBMD:
         student_net = deepcopy(self.teacher_net).to(self.device)
         student_data_estimator_net = deepcopy(self.teacher_net).to(self.device)
         student_net_ema = ModelEMA(model=student_net, decay=self.ema_decay)
+
+        if True:
+            remove_dropout_from_model(student_net)
+            remove_dropout_from_model(student_data_estimator_net)
+
         return student_net, student_net_ema, student_data_estimator_net
 
     @torch.no_grad()
