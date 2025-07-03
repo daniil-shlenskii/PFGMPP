@@ -54,7 +54,7 @@ class IBMD:
         student_data_estimator_net = deepcopy(self.teacher_net).to(self.device)
         student_net_ema = ModelEMA(model=student_net, decay=self.ema_decay)
 
-        if True:
+        if self.remove_dropout:
             remove_dropout_from_model(student_net)
             remove_dropout_from_model(student_data_estimator_net)
 
