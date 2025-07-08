@@ -85,6 +85,71 @@ class VisualizeImageModelCallback(IBMDCallback):
                 fig.delaxes(ax)
         plt.savefig(f"{eval_dir}/{it}.png")
 
+# class FIDCallback(IBMDCallback):
+#     def __init__(
+#         self,
+#         img_channels: int,
+#         img_resolution: int,
+#         n_classes: int,
+#         #
+#         dataset_name: str,
+#         dataset_split: str,
+#         #
+#         num_samples_per_class: int,
+#         batch_size: int,
+#         #
+#         mode: str = "clean"
+#     ):
+#         self.img_channels = img_channels
+#         self.img_resolution = img_resolution
+#         self.n_classes = n_classes
+#
+#         self.dataset_name = dataset_name
+#         self.dataset_split = dataset_split
+#
+#         self.num_samples_per_class = num_samples_per_class
+#         self.batch_size = batch_size
+#
+#         self.mode = mode
+#
+#     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
+#         fake_images = []
+#         for class_idx in range(self.n_classes):
+#             collected_images = 0
+#             for i in range(0, self.num_samples_per_class, self.batch_size):
+#                 batch_size = min(self.batch_size, self.num_samples_per_class - collected_images)
+#                 labels = torch.full((batch_size,), class_idx, dtype=torch.long).to(ibmd.device)
+#                 batch = ibmd.sample(
+#                     sample_size=batch_size, label=labels.to(ibmd.device), seed=i,
+#                 ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
+#                 batch = (batch.clip(-1, 1) * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
+#                 fake_images.append(batch)
+#                 collected_images += len(batch)
+#         fake_images = np.concatenate(fake_images, axis=0)
+#
+#         # Save generated images temporarily (clean-fid requires images on disk)
+#         temp_dir = f"{eval_dir}/fid_temp_{it}"
+#         os.makedirs(temp_dir, exist_ok=True)
+#         for i, img in enumerate(fake_images):
+#             plt.imsave(f"{temp_dir}/{i}.png", img.transpose(1, 2, 0))
+#
+#         # Compute FID
+#         score = fid.compute_fid(
+#             temp_dir,
+#             dataset_name=self.dataset_name,
+#             dataset_res=self.img_resolution,
+#             dataset_split=self.dataset_split,
+#             device=ibmd.device,
+#             batch_size=self.batch_size,
+#             mode=self.mode,
+#         )
+#         with open(f"{eval_dir}/fid.txt", "a") as f:
+#             f.write(f"{it}: {score:.3f}\n")
+#
+#         # Clean up
+#         import shutil
+#         shutil.rmtree(temp_dir)
+
 class FIDCallback(IBMDCallback):
     def __init__(
         self,
@@ -98,7 +163,8 @@ class FIDCallback(IBMDCallback):
         num_samples_per_class: int,
         batch_size: int,
         #
-        mode: str = "clean"
+        mode: str = "clean",
+        seed: int = 0,
     ):
         self.img_channels = img_channels
         self.img_resolution = img_resolution
@@ -111,31 +177,30 @@ class FIDCallback(IBMDCallback):
         self.batch_size = batch_size
 
         self.mode = mode
+        self.seed = seed
+
+        self.total_samples = n_classes * num_samples_per_class
+        self.label_schedule = torch.cat([
+            torch.full((num_samples_per_class,), cls)
+            for cls in range(n_classes)
+        ])
 
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
-        fake_images = []
-        for class_idx in range(self.n_classes):
-            collected_images = 0
-            for i in range(0, self.num_samples_per_class, self.batch_size):
-                batch_size = min(self.batch_size, self.num_samples_per_class - collected_images)
-                labels = torch.full((batch_size,), class_idx, dtype=torch.long).to(ibmd.device)
-                batch = ibmd.sample(
-                    sample_size=batch_size, label=labels.to(ibmd.device), seed=i,
-                ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution).cpu().numpy()
-                batch = (batch.clip(-1, 1) * 127.5 + 127.5).astype(np.uint8)  # [-1, 1] -> [0, 255]
-                fake_images.append(batch)
-                collected_images += len(batch)
-        fake_images = np.concatenate(fake_images, axis=0)
+        batch_start_idx = 0
 
-        # Save generated images temporarily (clean-fid requires images on disk)
-        temp_dir = f"{eval_dir}/fid_temp_{it}"
-        os.makedirs(temp_dir, exist_ok=True)
-        for i, img in enumerate(fake_images):
-            plt.imsave(f"{temp_dir}/{i}.png", img.transpose(1, 2, 0))
+        @torch.no_grad()
+        def sample_fn(unused_clean_fid_latent: torch.Tensor):
+            nonlocal batch_start_idx
+            labels = self.label_schedule[batch_start_idx : batch_start_idx + self.batch_size].to(ibmd.device)
+            batch_start_idx += self.batch_size
+            images = ibmd.sample(
+                sample_size=self.batch_size, label=labels.to(ibmd.device), seed=seed,
+            ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution)
+            images = images.clamp(-1, 1) * 127.5 + 127.5
+            return images.to(torch.uint8)
 
-        # Compute FID
         score = fid.compute_fid(
-            temp_dir,
+            gen=sample_fn,
             dataset_name=self.dataset_name,
             dataset_res=self.img_resolution,
             dataset_split=self.dataset_split,
@@ -143,9 +208,6 @@ class FIDCallback(IBMDCallback):
             batch_size=self.batch_size,
             mode=self.mode,
         )
+
         with open(f"{eval_dir}/fid.txt", "a") as f:
             f.write(f"{it}: {score:.3f}\n")
-
-        # Clean up
-        import shutil
-        shutil.rmtree(temp_dir)
