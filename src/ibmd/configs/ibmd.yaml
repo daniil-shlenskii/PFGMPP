@@ -17,10 +17,10 @@ eval:
 
 ibmd:
   other:
+    n_steps: 4
     ema_decay: 0.99
     n_classes: *n_classes
     remove_dropout: True
-    student_t_init_fraction: 1.
 
   teacher:
     dynamics:

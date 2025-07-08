@@ -36,7 +36,6 @@ ibmd:
   other:
     n_classes: *n_classes
     ema_decay: 0.995
-    student_t_init_fraction: 1.
     remove_dropout: True 
 
   teacher:

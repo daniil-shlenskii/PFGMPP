@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torch import LongTensor
 
+from ibmd.core.multistep import get_timestamps
 from ibmd.nn.ema import ModelEMA
 from ibmd.nn.utils import get_device_from_net, remove_dropout_from_model
 
@@ -22,7 +23,10 @@ class IBMD:
         # student
         student_net_optimizer_config: dict,
         teacher_loss_fn_for_student: Callable = None,
-        student_t_init_fraction: float = 1.,
+        student_sample_timestamps: tuple[float] = None,
+        # sampling
+        n_steps: int = 1,
+        sampling_mode: str = "uniform",
         #
         n_classes: int = None,
         ema_decay: float = 0.999,
@@ -57,7 +61,12 @@ class IBMD:
             **student_data_estimator_net_config,
         )
 
-        self.student_t_init_fraction = student_t_init_fraction
+        self.sampling_timestamps = get_timestamps(
+            mode=sampling_mode,
+            n_steps=n_steps,
+            sigma_min=self.teacher_dynamics.sigma_min,
+            sigma_max=self.teacher_dynamics.sigma_max,
+        )
 
     def _setup(self):
         student_net = deepcopy(self.teacher_net).to(self.device)
@@ -72,14 +81,26 @@ class IBMD:
 
     @torch.no_grad()
     def sample(self, *, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
-        prior_samples = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
-        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max * self.student_t_init_fraction).to(self.device)
-        return self.student_net_ema.ema(x=prior_samples, t=t, label=label)
+        x_noisy = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
+        for i, t in enumerate(self.sampling_timestamps):
+            t = torch.full((sample_size,), t).to(self.device)
+            x = self.student_net_ema.ema(x=x_noisy, t=t, label=label)
+            if i < len(self.sampling_timestamps) - 1:
+                t_next = self.sampling_timestamps[i + 1]
+                t_next = torch.full((sample_size,), t_next).to(self.device)
+                x_noisy = self.teacher_dynamics.sample_from_posterior(x=x, t=t_next, seed=seed)
+        return x
 
     def sample_from_student(self, sample_size: int, label: Optional[LongTensor]=None, seed: int=None):
-        prior_samples = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
-        t = torch.full((sample_size,), self.teacher_dynamics.sigma_max * self.student_t_init_fraction).to(self.device)
-        return self.student_net(x=prior_samples, t=t, label=label)
+        x_noisy = self.teacher_dynamics.sample_from_prior(sample_size, seed=seed).to(self.device)
+        for i, t in enumerate(self.sampling_timestamps):
+            t = torch.full((sample_size,), t).to(self.device)
+            x = self.student_net(x=x_noisy, t=t, label=label)
+            if i < len(self.sampling_timestamps) - 1:
+                t_next = self.sampling_timestamps[i + 1]
+                t_next = torch.full((sample_size,), t_next).to(self.device)
+                x_noisy = self.teacher_dynamics.sample_from_posterior(x=x, t=t_next, seed=seed)
+        return x
 
     def train_step(self, *, batch_size, inner_problem_iters: int):
         for _ in range(inner_problem_iters):
