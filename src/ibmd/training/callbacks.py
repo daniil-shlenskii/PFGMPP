@@ -1,5 +1,4 @@
 import abc
-import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,6 +7,7 @@ import torch
 from cleanfid import fid
 
 from ibmd.core import IBMD
+from ibmd.utils.reproducibility import set_seed
 
 
 class IBMDCallback(abc.ABC):
@@ -164,7 +164,6 @@ class FIDCallback(IBMDCallback):
         batch_size: int,
         #
         mode: str = "clean",
-        seed: int = 0,
     ):
         self.img_channels = img_channels
         self.img_resolution = img_resolution
@@ -177,7 +176,6 @@ class FIDCallback(IBMDCallback):
         self.batch_size = batch_size
 
         self.mode = mode
-        self.seed = seed
 
         self.total_samples = n_classes * num_samples_per_class
         self.label_schedule = torch.cat([
@@ -186,15 +184,18 @@ class FIDCallback(IBMDCallback):
         ])
 
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
+        set_seed(seed)
+
         batch_start_idx = 0
 
         @torch.no_grad()
         def sample_fn(unused_clean_fid_latent: torch.Tensor):
             nonlocal batch_start_idx
             labels = self.label_schedule[batch_start_idx : batch_start_idx + self.batch_size].to(ibmd.device)
-            batch_start_idx += self.batch_size
+            batch_size = labels.shape[0]
+            batch_start_idx += batch_size
             images = ibmd.sample(
-                sample_size=self.batch_size, label=labels.to(ibmd.device), seed=seed,
+                sample_size=batch_size, label=labels.to(ibmd.device),
             ).reshape(-1, self.img_channels, self.img_resolution, self.img_resolution)
             images = images.clamp(-1, 1) * 127.5 + 127.5
             return images.to(torch.uint8)
