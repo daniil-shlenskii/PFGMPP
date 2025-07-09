@@ -10,7 +10,7 @@ problem:
 train:
   n_iters: 35_000
   inner_problem_iters: 5
-  batch_size: 256
+  batch_size: 128
   run_dir: ibmd/${problem.teacher_ckpt_dir}/${problem.teacher_ckpt_name}
 
 eval:

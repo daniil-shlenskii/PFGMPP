@@ -119,8 +119,6 @@ class FIDCallback(IBMDCallback):
         ])
 
     def __call__(self, ibmd: IBMD, it: int, eval_dir: str, seed: int=0):
-        from time import time
-        st = time()
         set_seed(seed)
 
         batch_start_idx = 0
@@ -149,4 +147,3 @@ class FIDCallback(IBMDCallback):
 
         with open(f"{eval_dir}/fid.txt", "a") as f:
             f.write(f"{it}: {score:.3f}\n")
-        print(f"time: {time() - st}")
