@@ -14,7 +14,7 @@ def get_sigma_prior(*, mode: str, sigma_min: float, sigma_max: float):
             return torch.clip(sigma, min=sigma_min, max=sigma_max)
     elif mode == "uniform":
         def sample_from_sigma_prior(sample_size: int):
-            return torch.rand(sample_size)
+            return torch.rand(sample_size) * (sigma_max - sigma_min) + sigma_min
     elif mode == "linear":
         def sample_from_sigma_prior(sample_size: int):
             a, b = sigma_min, sigma_max

@@ -1,0 +1,70 @@
+problem:
+  img_channels: &img_channels 3
+  img_resolution: &img_resolution 32
+  data_dim: &data_dim 3072
+  n_classes: &n_classes 10
+
+  teacher_ckpt_dir: pfgmpp_orig
+  teacher_ckpt_name: cifar10_ncsnpp_D_2048_conditional
+
+train:
+  n_iters: 35_000
+  inner_problem_iters: 5
+  batch_size: 128
+  run_dir: ibmd/${problem.teacher_ckpt_dir}/${problem.teacher_ckpt_name}
+
+eval:
+  log_every: 50
+  eval_every: 500
+  callbacks:
+    - _target_: ibmd.training.callbacks.VisualizeImageModelCallback
+      img_channels: *img_channels
+      img_resolution: *img_resolution
+      n_classes: *n_classes
+      sample_size_per_class: 2
+    - _target_: ibmd.training.callbacks.FIDCallback
+      img_channels: *img_channels
+      img_resolution: *img_resolution
+      n_classes: *n_classes
+      dataset_name: cifar10
+      dataset_split: train
+      num_samples_per_class: 5000
+      batch_size: 1024
+      mode: legacy_tensorflow
+
+ibmd:
+  other:
+    n_classes: *n_classes
+    ema_decay: 0.995
+    remove_dropout: True 
+
+  teacher:
+    dynamics:
+      _target_: pfgmpp.core.PFGMPP
+      data_dim: *data_dim
+      sigma_min: 0.002
+      sigma_max: 80.0
+      D: 2048
+
+    loss:
+      _target_: pfgmpp.training.losses.TargetPredictionLoss
+      sigma_prior_mode: log_normal
+      loss_weights_mode: edm
+
+    loss_for_student:
+      _target_: pfgmpp.training.losses.TargetPredictionLoss
+      sigma_prior_mode: log_normal
+      loss_weights_mode: edm
+
+    n_classes: *n_classes
+    img_channels: *img_channels
+    img_resolution: *img_resolution
+
+    ckpt_path: ${problem.teacher_ckpt_dir}/${problem.teacher_ckpt_name}.pkl
+
+  student:
+    net_optimizer: &net_optimizer
+      lr: 5e-5
+      betas: [0., 0.999]
+
+    data_estimator_net_optimizer: *net_optimizer
