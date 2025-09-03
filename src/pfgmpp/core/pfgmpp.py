@@ -97,3 +97,18 @@ class PFGMPP:
         def guided_drift(x: Tensor, t: Tensor, label: LongTensor):
             return drift(x=x, t=t, label=label) - classifier_score(x=x, t=t, label=label) * guidance_scale * t
         return self.sample(drift=guided_drift, **kwargs)
+
+    @torch.no_grad()
+    def sample_with_cfg(
+        self,
+        *,
+        drift: Callable,
+        drift_cond: Callable,
+        guidance_scale: float,
+        **kwargs,
+    ):
+        def guided_drift(x: Tensor, t: Tensor, label: LongTensor):
+            d = drift(x=x, t=t, label=None)
+            dc = drift_cond(x=x, t=t, label=label)
+            return d + guidance_scale * (dc - d)
+        return self.sample(drift=guided_drift, **kwargs)
